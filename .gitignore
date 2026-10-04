@@ -6,3 +6,4 @@ __pycache__/
 # datos generados / descargados (se regeneran con el pipeline; las previews son material con copyright)
 cache/*
 !cache/app.html
+!cache/recommender.js

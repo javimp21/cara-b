@@ -31,7 +31,7 @@ header b{font-size:18px;letter-spacing:-.02em}
 /* ---------- pestañas y lista de descubiertas ---------- */
 .tabs{display:flex;gap:4px;background:var(--chip);border-radius:12px;padding:3px;margin:4px 0 6px}
 .tabs[hidden]{display:none}
-.tabs button{flex:1;border:0;background:none;border-radius:9px;padding:7px 8px;font-size:14px;font-weight:600;color:var(--muted)}
+.tabs button{flex:1;border:0;background:none;border-radius:9px;padding:7px 4px;font-size:13px;font-weight:600;color:var(--muted)}
 .tabs button.on{background:var(--surface);color:var(--fg);box-shadow:0 1px 4px rgba(0,0,0,.12)}
 .tabs .n{margin-left:4px;font-size:12px;background:var(--acc);color:#fff;border-radius:999px;padding:1px 7px}
 .tabs .n:empty{display:none}
@@ -49,6 +49,22 @@ header b{font-size:18px;letter-spacing:-.02em}
 .panel{padding:2px 12px 12px}
 .panel .links{margin-bottom:8px}
 .panel .dz{font-size:13px;color:var(--acc)}
+
+/* ---------- evaluación ---------- */
+.evh{margin:10px 0 2px;font-size:20px}
+.evp{margin:0 0 12px;color:var(--muted);font-size:13px}
+.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat{background:var(--surface);border-radius:14px;padding:12px}
+.statv{font-size:28px;font-weight:700;letter-spacing:-.02em}
+.statl{font-size:12px;color:var(--muted)}
+.statn{font-size:11px;color:var(--muted);margin-top:4px}
+.evsec{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:18px 2px 6px}
+.rbar{display:grid;grid-template-columns:62px 1fr 78px;gap:8px;align-items:center;font-size:13px;margin:5px 0}
+.rbar .bar{height:10px;border-radius:5px;background:var(--line);overflow:hidden}
+.rbar .bar i{display:block;height:100%;background:var(--acc)}
+.rbar span:last-child{color:var(--muted);text-align:right;font-size:12px}
+.note{background:var(--surface);border-radius:12px;padding:10px 12px;font-size:13px;color:var(--muted);margin-top:10px;line-height:1.5}
+.note b{color:var(--fg)}
 
 /* ---------- onboarding ---------- */
 .onb{overflow-y:auto;padding-bottom:12px}
@@ -145,6 +161,7 @@ header b{font-size:18px;letter-spacing:-.02em}
   <nav class="tabs" id="tabs" hidden>
     <button id="tabDeck" class="on">Descubrir</button>
     <button id="tabList">Descubiertas<span class="n" id="tabCount"></span></button>
+    <button id="tabEval">Evaluación</button>
   </nav>
 
   <!-- Onboarding: idiomas -->
@@ -161,6 +178,9 @@ header b{font-size:18px;letter-spacing:-.02em}
     <div class="mixlegend" id="mixlegend"></div>
     <h2>Instrumentales o idioma dudoso</h2>
     <div class="chips"><button class="chip on" id="instrChip">Incluir de vez en cuando</button></div>
+    <h2>Modo evaluación</h2>
+    <p>Para medir si el sistema acierta más que el azar, 1 de cada 5 canciones se elige al azar. Puedes desactivarlo.</p>
+    <div class="chips"><button class="chip on" id="evalChip">Activado</button></div>
     <button class="primary" id="startBtn">Empezar</button>
     <div class="seedline" id="seedline"></div>
   </section>
@@ -178,6 +198,7 @@ header b{font-size:18px;letter-spacing:-.02em}
 
   <!-- Canciones descubiertas -->
   <section class="screen list" id="listScreen"></section>
+  <section class="screen list" id="evalScreen"></section>
 
   <!-- Fin del día -->
   <section class="screen done" id="doneScreen"></section>
@@ -186,6 +207,7 @@ header b{font-size:18px;letter-spacing:-.02em}
 <div class="scrim" id="scrim"></div>
 <div class="sheet" id="sheet"></div>
 
+<script src="recommender.js"></script>
 <script>
 // ------------------------------------------------------------------ datos
 const LANG_NAMES = {es:"Español",en:"Inglés",pt:"Portugués",fr:"Francés",it:"Italiano",de:"Alemán",
@@ -193,99 +215,29 @@ const LANG_NAMES = {es:"Español",en:"Inglés",pt:"Portugués",fr:"Francés",it:
   sv:"Sueco",pl:"Polaco",tr:"Turco",ar:"Árabe",hi:"Hindi"};
 const PICKABLE = ["es","en","pt","fr","it","ca","gl","eu","de","ja","ko"];
 const LANG_COLORS = ["var(--acc)","#e3a33b","#2fa7b8","#d4589a","#7aa83a"];
-const PER_DAY = 5;
-const NOVELTY_SCALE = .35;
+const {PER_DAY, CONTROL_P} = Recommender;
 const NOPE_REASONS = [
   ["lang","El idioma"],["voice","La voz"],["rhythm","El ritmo"],["style","El estilo / género"],
   ["prod","La producción"],["hook","No me engancha"],["famous","Demasiado conocido"]];
 const LIKE_REASONS = [["voice","La voz"],["lyrics","La letra"],["rhythm","El ritmo"],
   ["instr","Guitarras / instrumentos"],["prod","La producción"]];
-// Cada motivo actúa solo sobre el ASPECTO del sonido al que se refiere (espacios de aspects.py):
-// "no me gusta la voz" aleja canciones con esa voz/timbre, pero no las de ritmo o estilo parecidos.
-// Sin motivo (o "no me engancha") se penaliza el sonido en general.
-const ASPECT_OF = {voice:"voice", instr:"voice", rhythm:"rhythm", style:"style", prod:"prod"};
-const ASPECT_W = {voice:1, rhythm:1, style:1, prod:.5};   // producción: sin validar, pesa la mitad
-const GLOBAL_NEG = .3, ASPECT_NEG = .1, ASPECT_POS = .07, ASPECT_Z0 = .5;
-// similitud en un aspecto, en desviaciones típicas respecto a un par cualquiera del mazo
-const zsim = (asp, a, b) => (dot(a.a[asp], b.a[asp]) - DECK.aspects[asp].mu) / DECK.aspects[asp].sigma;
-
 // ------------------------------------------------------------------ estado (localStorage, opcional)
 const KEY = "descubre-v1";
-const fresh = () => ({prefs:null, seen:[], likes:[], nopes:[], known:[], blocked:[], novelty:.15, langMult:{}, today:[], day:null});
+const fresh = Recommender.fresh;
 let S = fresh();
 try { const raw = localStorage.getItem(KEY); if (raw) S = {...fresh(), ...JSON.parse(raw)}; } catch {}
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
-const todayStr = () => new Date().toLocaleDateString("sv-SE");   // fecha local AAAA-MM-DD
+const todayStr = Recommender.localDate;
 if (S.day !== todayStr()) { S.day = todayStr(); S.today = []; }
 
-let DECK = null, byId = {};
+let DECK = null, R = null, byId = {};
 const $ = id => document.getElementById(id);
 const el = (tag, props={}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
 
-// ------------------------------------------------------------------ recomendador
-const dot = (a,b) => { let s=0; for (let i=0;i<a.length;i++) s+=a[i]*b[i]; return s; };
-
-function langWeights(p = S.prefs) {
-  // principal = mix%, el resto se reparte 4:3:2:1 entre los extra
-  const w = {[p.primary]: p.mix/100};
-  const rest = 1 - p.mix/100, ranks = [4,3,2,1].slice(0, p.extras.length);
-  const tot = ranks.reduce((a,b)=>a+b, 0) || 1;
-  p.extras.forEach((l,i) => w[l] = rest * ranks[i] / tot);
-  if (!p.extras.length) w[p.primary] = 1;
-  return w;
-}
-
-function score(t) {
-  const pos = DECK.tracks.filter(x => x.seed).map(x => [x, 1])
-    .concat(S.likes.map(l => [byId[l.id], 1.5]));
-  const sims = pos.map(([x,w]) => [dot(t.emb, x.emb) * w, x]).sort((a,b) => b[0]-a[0]);
-  const top = sims.slice(0,3);
-  const simPos = top.reduce((a,b)=>a+b[0],0) / top.length;
-  let neg = 0, bonus = 0;
-  for (const n of S.nopes) {
-    const x = byId[n.id];
-    if (!n.reasons.length || n.reasons.includes("hook")) neg = Math.max(neg, GLOBAL_NEG * dot(t.emb, x.emb));
-    for (const r of n.reasons) {
-      const a = ASPECT_OF[r];
-      if (a) neg = Math.max(neg, ASPECT_NEG * ASPECT_W[a] * Math.max(0, zsim(a, t, x) - ASPECT_Z0));
-    }
-  }
-  for (const l of S.likes) {   // "me gusta la voz / el ritmo..." atrae lo parecido en ESE aspecto
-    const x = byId[l.id];
-    for (const r of l.reasons) {
-      const a = ASPECT_OF[r];
-      if (a) bonus = Math.max(bonus, ASPECT_POS * ASPECT_W[a] * Math.max(0, zsim(a, t, x) - ASPECT_Z0));
-    }
-  }
-  return {score: simPos - neg + bonus + NOVELTY_SCALE*S.novelty*t.novelty, nearest: sims[0][1], simPos};
-}
-
-function nextTrack() {
-  // ni artistas ya vistos ni tus semillas (colaboraciones de una semilla aparecen en tops ajenos)
-  const seenArtists = new Set(S.seen.map(id => byId[id]?.artist_id));
-  DECK.tracks.filter(t => t.seed).forEach(t => seenArtists.add(t.artist_id));
-  S.blocked.forEach(b => seenArtists.add(b.id));
-  const w = langWeights();
-  for (const l in S.langMult) if (w[l]) w[l] *= S.langMult[l];
-  const pool = DECK.tracks.filter(t => !t.seed && !seenArtists.has(t.artist_id) &&
-    (w[t.lang] || (t.lang === "?" && S.prefs.instr)));
-  if (!pool.length) return null;
-  // elegir idioma para esta carta: el que más "debe" según la mezcla deseada vs. lo ya servido
-  const served = {}; S.seen.forEach(id => { const l = byId[id].lang; served[l] = (served[l]||0) + 1; });
-  const n = S.seen.length + 1;
-  const avail = new Set(pool.map(t => t.lang));
-  let lang = null, best = -Infinity;
-  for (const l in w) if (avail.has(l)) { const debt = w[l]*n - (served[l]||0); if (debt > best) { best = debt; lang = l; } }
-  // ~1 de cada 8 cartas puede ser instrumental/dudosa si se permite
-  if (S.prefs.instr && avail.has("?") && (served["?"]||0) < n/8 && Math.random() < .2) lang = "?";
-  const cands = pool.filter(t => t.lang === (lang ?? pool[0].lang)).map(t => ({t, ...score(t)}));
-  cands.sort((a,b) => b.score - a.score);
-  // un poco de aleatoriedad entre los 3 mejores: que no salga siempre lo mismo
-  return cands[Math.floor(Math.random() * Math.min(3, cands.length))];
-}
+const dot = Recommender.dot;
 
 // ------------------------------------------------------------------ onboarding
-let draft = {primary:"es", extras:["en"], mix:80, instr:true};
+let draft = {primary:"es", extras:["en"], mix:80, instr:true, eval:true};
 function renderOnb() {
   const pc = $("primaryChips"), ec = $("extraChips"); pc.innerHTML = ec.innerHTML = "";
   for (const l of PICKABLE) {
@@ -301,17 +253,20 @@ function renderOnb() {
   }
   $("mix").value = draft.mix; $("mixOut").textContent = draft.mix + "%";
   $("mix").disabled = !draft.extras.length;
-  const w = langWeights(draft), bar = $("mixbar"), leg = $("mixlegend");
+  const w = Recommender.langWeights(draft), bar = $("mixbar"), leg = $("mixlegend");
   bar.innerHTML = leg.innerHTML = "";
   Object.entries(w).forEach(([l,v],i) => {
     bar.append(el("span",{style:`width:${v*100}%;background:${LANG_COLORS[i]}`}));
     leg.append(el("span",{}, el("i",{style:`background:${LANG_COLORS[i]}`}), `${LANG_NAMES[l]} ${Math.round(v*100)}%`));
   });
+  $("evalChip").classList.toggle("on", draft.eval !== false);
+  $("evalChip").textContent = draft.eval !== false ? "Activado" : "Desactivado";
   $("instrChip").classList.toggle("on", draft.instr);
   $("instrChip").textContent = draft.instr ? "Incluir de vez en cuando" : "No incluir";
 }
 $("mix").oninput = e => { draft.mix = +e.target.value; renderOnb(); };
 $("instrChip").onclick = () => { draft.instr = !draft.instr; renderOnb(); };
+$("evalChip").onclick = () => { draft.eval = draft.eval === false; renderOnb(); };
 $("startBtn").onclick = () => { S.prefs = {...draft}; S.langMult = {}; save(); show("deckScreen"); deal(); };
 $("settingsBtn").onclick = () => { if (S.prefs) draft = {...S.prefs, extras:[...S.prefs.extras]}; stopAudio(); renderOnb(); show("onb"); };
 
@@ -319,8 +274,9 @@ $("settingsBtn").onclick = () => { if (S.prefs) draft = {...S.prefs, extras:[...
 function show(id) {
   for (const s of document.querySelectorAll(".screen")) s.classList.toggle("on", s.id === id);
   $("tabs").hidden = !S.prefs || id === "onb";
-  $("tabDeck").classList.toggle("on", id !== "listScreen");
+  $("tabDeck").classList.toggle("on", id !== "listScreen" && id !== "evalScreen");
   $("tabList").classList.toggle("on", id === "listScreen");
+  $("tabEval").classList.toggle("on", id === "evalScreen");
   $("tabCount").textContent = discoveries().length || "";
   renderDots();
 }
@@ -357,9 +313,57 @@ function renderList() {
     box.append(el("div",{className:"entry"}, row, panel));
   }
 }
+// ------------------------------------------------------------------ evaluación
+function renderEval() {
+  const box = $("evalScreen"); box.innerHTML = "";
+  const m = Recommender.metrics(S.log);
+  const pct = x => x == null ? "—" : Math.round(x * 100) + "%";
+  const num = x => x == null ? "—" : x.toFixed(2).replace(".", ",");
+  const ci = r => `${pct(r.ci[0])}–${pct(r.ci[1])}`;
+  box.append(el("h2",{className:"evh",textContent:"¿Acierta el sistema?"}),
+    el("p",{className:"evp",textContent: m.votes
+      ? `${m.votes} votos sobre canciones nuevas (las marcadas "ya lo conozco" no cuentan).`
+      : "Aún no hay votos. Vota unas cuantas canciones y vuelve aquí."}));
+  if (m.votes) {
+    const stat = (label, r) => el("div",{className:"stat"}, el("div",{className:"statv",textContent:pct(r.rate)}),
+      el("div",{className:"statl",textContent:label}),
+      el("div",{className:"statn",textContent: r.n ? `${r.likes} de ${r.n} · IC 95 %: ${ci(r)}` : "sin datos"}));
+    box.append(el("div",{className:"evgrid"}, stat("Elegidas por el modelo", m.byArm.model),
+      stat("Elegidas al azar (control)", m.byArm.control)));
+    const {model, control} = m.byArm;
+    let verdict;
+    if (!control.n) verdict = "No hay canciones de control: activa el modo evaluación para poder comparar con el azar.";
+    else if (model.n < 10 || control.n < 10) verdict = "Todavía hay muy pocos votos para comparar (se necesitan al menos 10 de cada tipo).";
+    else if (model.ci[0] > control.ci[1]) verdict = `<b>El modelo acierta más que el azar</b>: ${pct(model.rate)} frente a ${pct(control.rate)}, y los intervalos no se solapan.`;
+    else if (model.rate > control.rate) verdict = `El modelo va por delante (${pct(model.rate)} frente a ${pct(control.rate)}), pero los intervalos se solapan: <b>aún no se puede afirmar</b>. Hacen falta más votos.`;
+    else verdict = `Ahora mismo el modelo no supera al azar (${pct(model.rate)} frente a ${pct(control.rate)}).`;
+    box.append(el("div",{className:"note",innerHTML:verdict}));
+
+    box.append(el("div",{className:"evsec",textContent:"Aciertos por ronda"}));
+    m.byRound.forEach(r => box.append(el("div",{className:"rbar"}, el("span",{textContent:`Ronda ${r.round}`}),
+      el("div",{className:"bar"}, el("i",{style:`width:${(r.rate||0)*100}%`})),
+      el("span",{textContent:`${pct(r.rate)} · ${r.likes}/${r.n}`}))));
+    if (m.firstHalf.n >= 5 && m.secondHalf.n >= 5)
+      box.append(el("div",{className:"note",innerHTML:`Primera mitad de tus votos: <b>${pct(m.firstHalf.rate)}</b> · segunda mitad: <b>${pct(m.secondHalf.rate)}</b>. Si el sistema aprende, la segunda debería ser mayor.`}));
+
+    box.append(el("div",{className:"evsec",textContent:"¿Ordena bien? (AUC, 0,50 = azar)"}),
+      el("div",{className:"note",innerHTML:
+        `Probabilidad de que una canción que te gustó tuviera más puntuación que una que no:<br>`+
+        `con aprendizaje <b>${num(m.auc.model)}</b> · solo con tus artistas de partida <b>${num(m.auc.seedOnly)}</b>`+
+        (m.auc.modelControl != null ? `<br>Solo en las de control (sin sesgo de selección): <b>${num(m.auc.modelControl)}</b> frente a <b>${num(m.auc.seedOnlyControl)}</b>` : "")}));
+    if (m.votes < 30) box.append(el("div",{className:"note",textContent:"Con menos de 30 votos los porcentajes son muy ruidosos: no saques conclusiones todavía."}));
+  }
+  box.append(el("button",{className:"primary",textContent:"Exportar votos (JSON)",onclick(){
+      const blob = new Blob([JSON.stringify({exportado:new Date().toISOString(), prefs:S.prefs, embedding:DECK.embedding, log:S.log}, null, 1)], {type:"application/json"});
+      el("a",{href:URL.createObjectURL(blob), download:"votos.json"}).click(); }}),
+    el("button",{className:"iconbtn",style:"margin-top:10px;display:block",textContent:"Borrar solo el registro de evaluación",onclick(){
+      S.log = []; S.round = 1; save(); renderEval(); }}));
+}
+
 function goTab(tab) {
   if (!S.prefs) return;
   if (tab === "list") { audio.pause(); renderList(); show("listScreen"); return; }
+  if (tab === "eval") { audio.pause(); renderEval(); show("evalScreen"); return; }
   if (S.today.length >= PER_DAY) return finishDay();
   show("deckScreen");
   const card = document.querySelector(".card");
@@ -368,6 +372,7 @@ function goTab(tab) {
 }
 $("tabDeck").onclick = () => goTab("deck");
 $("tabList").onclick = () => goTab("list");
+$("tabEval").onclick = () => goTab("eval");
 function renderDots() {
   const d = $("dots"); d.innerHTML = "";
   if (!S.prefs) return;
@@ -429,7 +434,8 @@ function cardEl(rec) {
 function deal() {
   renderDots();
   if (S.today.length >= PER_DAY) return finishDay();
-  const rec = nextTrack();
+  const control = S.prefs.eval !== false && Math.random() < CONTROL_P;   // modo evaluación: 1 de cada 5 al azar
+  const rec = R.nextTrack(S, {control});
   if (!rec) { $("stack").innerHTML = ""; $("stack").append(el("div",{className:"empty",textContent:"No quedan canciones en el mazo para tus idiomas. Prueba a añadir otro idioma."})); return; }
   current = rec;
   const stack = $("stack"); stack.innerHTML = "";
@@ -490,10 +496,7 @@ function flingKnown(card) {
 function onKnown() {
   const t = current.t;
   const finish = verdict => {
-    if (verdict === "like") S.likes.push({id:t.id, reasons:[], known:true});
-    else if (verdict === "nope") S.nopes.push({id:t.id, reasons:[], known:true});
-    else S.known.push({id:t.id});
-    S.seen.push(t.id); S.novelty = Math.min(.6, S.novelty + .03);
+    R.vote(S, t, {kind: "known-" + verdict}, current);
     save(); closeSheet(); deal();
   };
   openSheet(
@@ -555,7 +558,7 @@ function onLike() {
     el("p",{className:"label",textContent:"¿Qué es lo que más te gusta? (opcional)"}),
     chipGroup(LIKE_REASONS, picked),
     el("div",{className:"row"}, el("button",{className:"go",textContent:"Siguiente",onclick(){
-      record("likes", {id:t.id, reasons:[...picked]}); closeSheet(); deal(); }})));
+      R.vote(S, t, {kind:"like", reasons:[...picked]}, current); save(); closeSheet(); deal(); }})));
 }
 
 function onNope() {
@@ -566,11 +569,8 @@ function onNope() {
     this.textContent = block ? `🚫 No te volveré a recomendar a ${t.artist}` : `🚫 No recomendar más a ${t.artist}`;
   }, textContent:`🚫 No recomendar más a ${t.artist}`});
   const done = () => {
-    const reasons = [...picked];
-    if (block) S.blocked.push({id:t.artist_id, name:t.artist});
-    if (picked.has("lang") && t.lang !== "?") S.langMult[t.lang] = (S.langMult[t.lang] ?? 1) * .6;
-    if (picked.has("famous")) S.novelty = Math.min(.6, S.novelty + .1);
-    record("nopes", {id:t.id, reasons}); closeSheet(); deal();
+    R.vote(S, t, {kind:"nope", reasons:[...picked], block}, current);
+    save(); closeSheet(); deal();
   };
   openSheet(
     el("div",{className:"sheethead"}, el("h4",{textContent:"¿Por qué no?"}), undoBtn()),
@@ -579,10 +579,6 @@ function onNope() {
     blockBtn,
     el("div",{className:"row"}, el("button",{textContent:"Saltar",onclick(){ picked.clear(); done(); }}),
                                 el("button",{className:"go",textContent:"Listo",onclick:done})));
-}
-
-function record(kind, entry) {
-  entry.date = todayStr(); S[kind].push(entry); S.seen.push(entry.id); S.today.push(entry.id); save();
 }
 
 // ------------------------------------------------------------------ fin del día
@@ -617,7 +613,7 @@ function finishDay() {
 
 // ------------------------------------------------------------------ arranque
 fetch("deck.json", {cache:"no-store"}).then(r => r.json()).then(d => {
-  DECK = d; d.tracks.forEach(t => byId[t.id] = t);
+  DECK = d; R = Recommender.create(d); byId = R.byId;
   S.seen = S.seen.filter(id => byId[id]); S.likes = S.likes.filter(l => byId[l.id]); S.nopes = S.nopes.filter(n => byId[n.id]);
   const counts = {}; d.tracks.filter(t=>!t.seed).forEach(t => counts[t.lang] = (counts[t.lang]||0)+1);
   $("seedline").textContent = `Prototipo · semillas: ${d.seeds.join(", ")} · ${Object.values(counts).reduce((a,b)=>a+b,0)} canciones en el mazo (` +
