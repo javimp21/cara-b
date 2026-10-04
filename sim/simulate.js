@@ -34,29 +34,31 @@ const rng = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Mat
 
 const stateFor = () => { const S = Rec.fresh(); S.prefs = {primary: "es", extras: [], mix: 100, instr: false}; S.day = "sim"; return S; };
 
-// estrategias de recomendación
-const STRATEGIES = {
+// estrategias de recomendación (RR = recomendador a usar, para poder comparar configuraciones)
+const strategies = RR => ({
   // el sistema completo, tal cual lo usa la app
-  modelo: (S, r) => R.nextTrack(S, {rng: r}),
-  "modelo (sin dar motivos)": (S, r) => R.nextTrack(S, {rng: r}),
+  modelo: (S, r) => RR.nextTrack(S, {rng: r}),
+  "modelo (sin dar motivos)": (S, r) => RR.nextTrack(S, {rng: r}),
   // mismo sistema pero sin aprender de los votos (solo el gusto de partida): línea base "sin aprendizaje"
-  "sin aprender": (S, r) => R.nextTrack({...S, likes: [], nopes: [], novelty: .15, langMult: {}}, {rng: r}),
+  "sin aprender": (S, r) => RR.nextTrack({...S, likes: [], nopes: [], novelty: .15, langMult: {}}, {rng: r}),
   // al azar dentro del idioma: línea base mínima
-  azar: (S, r) => R.nextTrack(S, {rng: r, control: true}),
-};
+  azar: (S, r) => RR.nextTrack(S, {rng: r, control: true}),
+});
+const STRATEGIES = strategies(R);
 
-function run(persona, strategy, seed, mixedControl = false, giveReasons = true) {
+function run(persona, strategy, seed, mixedControl = false, giveReasons = true, RR = R) {
   const likes = PERSONAS[persona].match, why = PERSONAS[persona].reason, r = rng(seed), S = stateFor(), votes = [];
+  const pick = RR === R ? STRATEGIES[strategy] : strategies(RR)[strategy];
   for (let round = 1; round <= ROUNDS; round++) {
     S.today = [];
     for (let i = 0; i < Rec.PER_DAY; i++) {
-      let rec = mixedControl && r() < Rec.CONTROL_P ? R.nextTrack(S, {rng: r, control: true}) : STRATEGIES[strategy](S, r);
+      let rec = mixedControl && r() < Rec.CONTROL_P ? RR.nextTrack(S, {rng: r, control: true}) : pick(S, r);
       if (!rec) return votes;
       if (strategy === "sin aprender" || strategy === "azar") rec = {...rec, arm: strategy === "azar" ? "control" : "model"};
       const match = likes(rec.t);
       const liked = r() < (match ? P_MATCH : P_OTHER);
       // si el usuario sabe decir por qué, dice el motivo cuando rechaza algo que no encaja con su gusto
-      R.vote(S, rec.t, {kind: liked ? "like" : "nope", reasons: !liked && !match && giveReasons ? [why] : []}, rec);
+      RR.vote(S, rec.t, {kind: liked ? "like" : "nope", reasons: !liked && !match && giveReasons ? [why] : []}, rec);
       votes.push({round, liked, match});
     }
   }
@@ -68,6 +70,7 @@ const ci95 = a => { const m = mean(a), sd = Math.sqrt(a.reduce((x, y) => x + (y 
 const pct = x => (x * 100).toFixed(0) + "%";
 const BLOCKS = [[1, 3], [4, 6], [7, 9], [10, 12]].filter(([a]) => a <= ROUNDS);
 
+function main() {
 const nonSeed = deck.tracks.filter(t => !t.seed && t.lang === "es");
 console.log(`Mazo: ${nonSeed.length} canciones en español (${new Set(nonSeed.map(t => t.artist_id)).size} artistas). ` +
   `${RUNS} simulaciones por celda, ${ROUNDS} rondas de ${Rec.PER_DAY} votos. P(me gusta | encaja) = ${P_MATCH}, P(me gusta | no encaja) = ${P_OTHER}\n`);
@@ -113,3 +116,7 @@ for (const persona of Object.keys(PERSONAS)) {
   results[persona].evaluacion = {modelo: m.byArm.model.rate, control: m.byArm.control.rate, aucControl: m.auc.modelControl, aucSinAprender: m.auc.seedOnlyControl};
 }
 fs.writeFileSync(path.join(__dirname, "results.json"), JSON.stringify({runs: RUNS, rounds: ROUNDS, results}, null, 1));
+}
+
+if (require.main === module) main();
+module.exports = {deck, genres, PERSONAS, run, mean, ci95, pct, BLOCKS, ROUNDS, RUNS, create: Rec.create};

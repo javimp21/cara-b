@@ -96,6 +96,24 @@ Limitaciones: son usuarios sintéticos, los géneros de Deezer son ruidosos (niv
 node sim/simulate.js --runs 60    # ~3 min; escribe sim/results.json
 ```
 
+### Intentos de mejorar el arranque en frío (resultado negativo)
+
+Con el mismo simulador, `sim/sweep.js` prueba variantes del recomendador (40 simulaciones por celda; media de los cuatro perfiles, y tasa de «me gusta» del perfil latino / flamenco en las rondas 1-3, que es el que arranca peor):
+
+| Variante | Media de perfiles | Latino, rondas 1-3 | Rock, rondas 1-3 |
+|---|---|---|---|
+| actual | 40 % | 24 % | 57 % |
+| semillas pierden peso al acumular «me gusta» (K = 1, 2, 3, 5) | 40-41 % | 23-26 % | 56-57 % |
+| «me gusta» pesan ×2,5 | 41 % | 24 % | 58 % |
+| semillas pierden peso + «me gusta» ×2,5 | 40 % | 25 % | 59 % |
+| explorar al azar el 20 % al principio (decae ×0,85 por ronda) | 41 % | 31 % | 55 % |
+| diversidad dentro de la ronda (0,15 / 0,3 / 0,5) | 39-40 % | 24-33 % | 50-54 % |
+
+- **Bajar el peso de las semillas no cambia nada.** Mi hipótesis era que las semillas pesaban demasiado, pero el cuello de botella es otro: si el sistema no sirve canciones de tu gusto real, no recibe «me gusta» de los que aprender. Es un problema de exploración, no de ponderación.
+- **Explorar sí ayuda al que parte mal** (24 % → 31 % en las primeras rondas), a costa de 2-4 puntos para quien ya estaba bien servido por sus semillas. En conjunto la mejora (40 % → 41 %) cae dentro del margen de error, así que **no he cambiado los valores por defecto**. Las opciones (`mmr`, `exploreP`, `likeW`, `seedDecayK`) quedan en `cache/recommender.js` por si se quieren activar.
+- **El modo evaluación ya explora de forma natural:** el 20 % de canciones de control son al azar y también alimentan el aprendizaje.
+- **En la práctica el problema pesa menos de lo que parece**, porque las semillas de un usuario real son los artistas que le gustan. El caso de un gusto que no se parece a nada de lo declarado en el onboarding es el de estrés de la simulación.
+
 ## Uso
 
 Requiere Python 3.10+. La primera ejecución descarga los modelos (CLAP ≈ 800 MB, Whisper ≈ 500 MB, MERT ≈ 400 MB); en CPU, generar un mazo de ~250 canciones tarda más de una hora.
@@ -136,6 +154,7 @@ En `cache/` hay ya un mazo generado con `Barry B, Sanguijuelas del Guadiana, Ven
 | `aspects.py` | Espacios por aspecto (voz, estilo, ritmo, producción) y su validación |
 | `cache/recommender.js` | Lógica del recomendador (puntuación, siguiente canción, aprendizaje, métricas), sin interfaz |
 | `sim/simulate.js` | Simulación con usuarios sintéticos (Node) |
+| `sim/sweep.js` | Barrido de parámetros del recomendador con la misma simulación |
 | `cache/app.html` | La app de tarjetas (HTML, CSS y JS en un archivo) |
 
 ## Pendiente
@@ -145,4 +164,4 @@ En `cache/` hay ya un mazo generado con `Barry B, Sanguijuelas del Guadiana, Ven
 - Importar gustos desde Last.fm o una playlist, además del formulario de onboarding.
 - Backend y cuentas de usuario para guardar los votos y generar las 5 del día.
 - Evaluar con más usuarios que solo yo.
-- Mitigar el arranque en frío: que el peso de las semillas baje a medida que se acumulan votos propios, y que los "me gusta" aprendan más rápido.
+- Arranque en frío: ajustar pesos o añadir exploración simple no basta (ver arriba). Lo que probablemente ayude es un onboarding que cubra más gustos y un modelo de preferencias entrenado con los votos, en vez de vecinos más cercanos.

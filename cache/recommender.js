@@ -31,7 +31,14 @@
     return w;
   }
 
-  function create(deck) {
+  // opts (todos opcionales; los valores por defecto son los que usa la app):
+  //   likeW      peso de los "me gusta" del usuario como positivos (las semillas pesan 1 al principio)
+  //   seedDecayK las semillas pierden peso al acumular "me gusta": peso = 1 / (1 + me_gusta / K). 0 = nunca
+  //   seedMin    peso mínimo de las semillas
+  //   mmr        diversidad dentro de la ronda: resta mmr * (parecido con lo ya servido en la ronda)
+  //   exploreP   probabilidad inicial de servir una canción al azar para explorar; decae x exploreDecay por ronda
+  function create(deck, opts = {}) {
+    const {likeW = 1.5, seedDecayK = 0, seedMin = 0, mmr = 0, exploreP = 0, exploreDecay = 1} = opts;
     const byId = {};
     deck.tracks.forEach(t => byId[t.id] = t);
     const seeds = deck.tracks.filter(t => t.seed);
@@ -40,7 +47,8 @@
 
     // learn:false = línea base sin aprendizaje (solo el gusto declarado en las semillas)
     function score(S, t, {learn = true} = {}) {
-      const pos = seeds.map(x => [x, 1]).concat(learn ? S.likes.map(l => [byId[l.id], 1.5]) : []);
+      const seedW = learn && seedDecayK ? Math.max(seedMin, 1 / (1 + S.likes.length / seedDecayK)) : 1;
+      const pos = seeds.map(x => [x, seedW]).concat(learn ? S.likes.map(l => [byId[l.id], likeW]) : []);
       const sims = pos.map(([x, w]) => [dot(t.emb, x.emb) * w, x]).sort((a, b) => b[0] - a[0]);
       const top = sims.slice(0, 3);
       const simPos = top.reduce((a, b) => a + b[0], 0) / top.length;
@@ -86,11 +94,19 @@
       // ~1 de cada 8 cartas puede ser instrumental/dudosa si se permite
       if (S.prefs.instr && avail.has("?") && (served["?"] || 0) < n / 8 && rng() < .2) lang = "?";
       const cands = pool.filter(t => t.lang === (lang ?? pool[0].lang)).map(t => ({t, ...score(S, t)}));
+      // rank = puntuación para ordenar; score se conserva intacta para el log y las métricas
+      for (const c of cands) c.rank = c.score;
+      if (mmr && S.today.length) {        // diversidad: penaliza lo parecido a lo ya servido en esta ronda
+        const served = S.today.map(id => byId[id]);
+        for (const c of cands) c.rank -= mmr * Math.max(...served.map(x => dot(c.t.emb, x.emb)));
+      }
       let pick, arm = "model";
       if (control) {                      // grupo de control: al azar dentro del mismo idioma
         pick = cands[Math.floor(rng() * cands.length)]; arm = "control";
+      } else if (exploreP && rng() < exploreP * Math.pow(exploreDecay, S.round - 1)) {
+        pick = cands[Math.floor(rng() * cands.length)]; arm = "explore";   // exploración: al azar, pero cuenta como del sistema
       } else {
-        cands.sort((a, b) => b.score - a.score);
+        cands.sort((a, b) => b.rank - a.rank);
         // un poco de aleatoriedad entre los 3 mejores: que no salga siempre lo mismo
         pick = cands[Math.floor(rng() * Math.min(3, cands.length))];
       }
