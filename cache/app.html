@@ -200,8 +200,14 @@ const NOPE_REASONS = [
   ["prod","La producción"],["hook","No me engancha"],["famous","Demasiado conocido"]];
 const LIKE_REASONS = [["voice","La voz"],["lyrics","La letra"],["rhythm","El ritmo"],
   ["instr","Guitarras / instrumentos"],["prod","La producción"]];
-// cuánto "empuja en contra" cada motivo del no (se aplica al sonido de esa canción)
-const NEG_WEIGHT = {voice:.7, rhythm:.7, style:1, prod:.6, hook:.5, none:.5};
+// Cada motivo actúa solo sobre el ASPECTO del sonido al que se refiere (espacios de aspects.py):
+// "no me gusta la voz" aleja canciones con esa voz/timbre, pero no las de ritmo o estilo parecidos.
+// Sin motivo (o "no me engancha") se penaliza el sonido en general.
+const ASPECT_OF = {voice:"voice", instr:"voice", rhythm:"rhythm", style:"style", prod:"prod"};
+const ASPECT_W = {voice:1, rhythm:1, style:1, prod:.5};   // producción: sin validar, pesa la mitad
+const GLOBAL_NEG = .3, ASPECT_NEG = .1, ASPECT_POS = .07, ASPECT_Z0 = .5;
+// similitud en un aspecto, en desviaciones típicas respecto a un par cualquiera del mazo
+const zsim = (asp, a, b) => (dot(a.a[asp], b.a[asp]) - DECK.aspects[asp].mu) / DECK.aspects[asp].sigma;
 
 // ------------------------------------------------------------------ estado (localStorage, opcional)
 const KEY = "descubre-v1";
@@ -235,12 +241,23 @@ function score(t) {
   const sims = pos.map(([x,w]) => [dot(t.emb, x.emb) * w, x]).sort((a,b) => b[0]-a[0]);
   const top = sims.slice(0,3);
   const simPos = top.reduce((a,b)=>a+b[0],0) / top.length;
-  let simNeg = 0;
+  let neg = 0, bonus = 0;
   for (const n of S.nopes) {
-    const w = Math.max(0, ...n.reasons.map(r => NEG_WEIGHT[r] ?? 0), n.reasons.length ? 0 : NEG_WEIGHT.none);
-    if (w) simNeg = Math.max(simNeg, dot(t.emb, byId[n.id].emb) * w);
+    const x = byId[n.id];
+    if (!n.reasons.length || n.reasons.includes("hook")) neg = Math.max(neg, GLOBAL_NEG * dot(t.emb, x.emb));
+    for (const r of n.reasons) {
+      const a = ASPECT_OF[r];
+      if (a) neg = Math.max(neg, ASPECT_NEG * ASPECT_W[a] * Math.max(0, zsim(a, t, x) - ASPECT_Z0));
+    }
   }
-  return {score: simPos - .6*simNeg + NOVELTY_SCALE*S.novelty*t.novelty, nearest: sims[0][1], simPos};
+  for (const l of S.likes) {   // "me gusta la voz / el ritmo..." atrae lo parecido en ESE aspecto
+    const x = byId[l.id];
+    for (const r of l.reasons) {
+      const a = ASPECT_OF[r];
+      if (a) bonus = Math.max(bonus, ASPECT_POS * ASPECT_W[a] * Math.max(0, zsim(a, t, x) - ASPECT_Z0));
+    }
+  }
+  return {score: simPos - neg + bonus + NOVELTY_SCALE*S.novelty*t.novelty, nearest: sims[0][1], simPos};
 }
 
 function nextTrack() {

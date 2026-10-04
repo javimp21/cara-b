@@ -13,7 +13,8 @@ Prototipo de una app de recomendación musical con tarjetas tipo Tinder, pensada
 - **Idiomas**: un idioma principal y hasta 4 más por orden de preferencia, con un control de cuánta música quieres en el principal.
 - **Sección "Descubiertas"**: lista de las canciones nuevas que te han gustado, agrupadas por el día en que las descubriste. Al pulsar una se despliegan los enlaces a Spotify, YouTube Music, Apple Music, Tidal y Deezer.
 - **Control del usuario**: "Cambiar de opinión" tras un swipe y "No recomendar más a este artista".
-- **El sistema aprende en el navegador** con cada voto: sube lo parecido a lo que te gusta, aleja lo parecido a lo que descartas según el motivo, y ajusta el peso de los idiomas y de la novedad.
+- **El sistema aprende en el navegador** con cada voto: sube lo parecido a lo que te gusta, aleja lo parecido a lo que descartas, y ajusta el peso de los idiomas y de la novedad.
+- **Los motivos actúan sobre lo que dices**: "no me gusta la voz" aleja canciones con esa voz o timbre pero no las de ritmo parecido, y "me gusta el ritmo" atrae canciones de ritmo parecido. Ver *Aspectos del sonido* más abajo.
 - **Explicaciones honestas**: solo dice "parecida a X" si el parecido es alto dentro del mazo, y lo explica con medidas reales (tempo, energía, brillo), no con etiquetas inventadas.
 
 ## Cómo funciona
@@ -26,7 +27,8 @@ filtro de popularidad RELATIVA (se descarta el ~12 % más famoso del grafo)
    │
    ├─ idioma de cada canción:  letra (LRCLIB) > idioma del artista > audio (Whisper) + título
    ├─ embedding de audio:      MERT-v1-95M, capas 4-7, PCA a 128 dimensiones
-   └─ medidas interpretables:  BPM, energía, brillo, pegada rítmica (librosa)
+   ├─ medidas interpretables:  BPM, energía, brillo, pegada rítmica (librosa)
+   └─ espacios por aspecto:    voz, estilo, ritmo, producción (aspects.py)
    ▼
 cache/deck.json  ──►  cache/app.html (recomendador en JavaScript, sin backend)
 ```
@@ -37,6 +39,24 @@ Decisiones técnicas que merecen mención:
 - **CLAP se descartó.** Es el primer modelo que probé, y agrupa por "género general": ante la pregunta "¿el vecino más cercano de una canción es otra del mismo artista?" acierta el 3 %. MERT, entrenado solo con música, acierta el 12 % (25 % entre los 5 más cercanos). Combinarlo con características clásicas no mejoraba.
 - **La detección de idioma por audio (Whisper) no es fiable en música** (marcaba "Ay Mamá" como inglés), así que se usa solo como último recurso tras la letra y el idioma del artista.
 - **La popularidad es relativa al grafo**, no un umbral fijo de fans: los fans de Deezer no son comparables entre países.
+
+## Aspectos del sonido
+
+Cuando dices "no me gusta la voz" o "me gusta el ritmo", el sistema debe actuar solo sobre esa dimensión. Para eso cada canción tiene un espacio por aspecto, y `aspects.py` los valida contra referencias externas (identidad de artista, géneros de Deezer, BPM):
+
+| Aspecto | Señal | Referencia | Resultado |
+|---|---|---|---|
+| Voz / timbre | MERT capas 3-6 | mismo artista en los 5 vecinos | 0,21 (azar 0,02) |
+| Ritmo | BPM, pegada, energía (librosa) | diferencia de BPM entre vecinos | 0,11 (azar 0,26) |
+| Estilo | MERT capas 9-11 sin los 4 ejes principales de voz | géneros de Deezer | 0,25 (azar 0,23) |
+| Producción | MERT capas 0-2 + contraste/brillo | ninguna fiable | sin validar, pesa la mitad |
+
+Lo que salió bien y lo que no:
+
+- **El ritmo y la voz se separan limpiamente** (correlación entre sus similitudes: +0,42) y están validados.
+- **El estilo es débil.** En MERT el género y la voz están entrelazados: quitar los 4 ejes principales de voz deja las capas profundas casi sin identidad de artista y conserva el género; quitar más lo destruye (0,25 → 0,22). Mi primer intento, una "huella de géneros" con CLAP, quedó igual que el azar y lo descarté.
+- **La producción no se pudo validar.** El mazo es muy homogéneo (casi todo de 2015-2026, mayoría pop/indie), así que ni el año de lanzamiento ni los géneros discriminan. Está implementada pero con peso reducido, a la espera de más datos.
+- **Efecto comprobado:** al marcar la misma canción con "no" por voz, ritmo o estilo, las 15 canciones más penalizadas casi no coinciden entre sí (2 de 15 entre voz y ritmo). "Idioma" y "demasiado conocido" no tocan el sonido.
 
 ## Uso
 
@@ -49,11 +69,14 @@ pip install -r requirements.txt
 
 # 1) mazo base: grafo de artistas, previews, idiomas
 python build_deck.py --seeds "Artista 1, Artista 2, Artista 3"
-# 2) medidas clásicas de audio y embeddings MERT
+# 2) géneros y año (referencias para validar), medidas clásicas de audio y embeddings MERT
+python genres.py
 python features.py
 python mert_embed.py
 # 3) vectores finales + datos para las explicaciones
 python finalize_deck.py
+# 4) espacios por aspecto (voz, estilo, ritmo, producción) y su validación
+python aspects.py
 
 # probar la app
 python -m http.server 8765 -d cache
@@ -68,14 +91,16 @@ En `cache/` hay ya un mazo generado con `Barry B, Sanguijuelas del Guadiana, Ven
 |---|---|
 | `discover.py` | Cliente de Deezer con caché, descarga de previews y prototipo inicial con CLAP |
 | `build_deck.py` | Construye el mazo: grafo, filtro de popularidad, idiomas |
+| `genres.py` | Géneros y año de Deezer por canción (referencias para validar los aspectos) |
 | `features.py` | BPM, energía, timbre y armonía con librosa |
 | `mert_embed.py` | Embeddings MERT por capas (con hooks, por compatibilidad con transformers 5) |
 | `finalize_deck.py` | Sustituye los vectores por los de MERT y añade las medidas interpretables |
+| `aspects.py` | Espacios por aspecto (voz, estilo, ritmo, producción) y su validación |
 | `cache/app.html` | La app de tarjetas (HTML, CSS y JS en un archivo) |
 
 ## Pendiente
 
-- Separar de verdad los motivos del "no" (voz frente a ritmo) en lugar de pesos distintos sobre el mismo vector.
+- Aislar la voz con separación de fuentes (p. ej. Demucs) para que "la voz" no dependa del timbre general, y validar mejor estilo y producción con un catálogo más variado.
 - Mazos para varios idiomas: ahora el mazo sale de artistas en español y apenas hay inglés.
 - Importar gustos desde Last.fm o una playlist, además del formulario de onboarding.
 - Backend y cuentas de usuario para guardar los votos y generar las 5 del día.
