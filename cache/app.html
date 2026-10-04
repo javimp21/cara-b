@@ -1,0 +1,612 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Descubre</title>
+<style>
+:root{
+  --bg:#f4f2ee;--surface:#ffffff;--fg:#17161a;--muted:#6d6a73;--line:#e2dfd8;
+  --like:#1f9d6b;--nope:#d9483b;--acc:#5b4cf0;--chip:#efedf7;--chip-on:#5b4cf0;--chip-on-fg:#fff;
+  --shadow:0 10px 30px rgba(20,18,30,.12);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#111014;--surface:#1c1b21;--fg:#f0eef5;--muted:#9c98a6;--line:#2c2a33;
+  --like:#35c48c;--nope:#f0675a;--acc:#8b7fff;--chip:#26242d;--chip-on:#8b7fff;--chip-on-fg:#111014;
+  --shadow:0 10px 30px rgba(0,0,0,.45);
+}}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer}
+.app{max-width:440px;height:100%;margin:auto;display:flex;flex-direction:column;padding:12px 16px calc(16px + env(safe-area-inset-bottom))}
+header{display:flex;align-items:center;justify-content:space-between;height:40px}
+header b{font-size:18px;letter-spacing:-.02em}
+.dots{display:flex;gap:6px}.dots i{width:22px;height:5px;border-radius:3px;background:var(--line)}
+.dots i.done{background:var(--acc)}
+.iconbtn{border:0;background:none;color:var(--muted);font-size:13px;padding:6px}
+.screen{flex:1;display:none;flex-direction:column;min-height:0}
+.screen.on{display:flex}
+
+/* ---------- pestañas y lista de descubiertas ---------- */
+.tabs{display:flex;gap:4px;background:var(--chip);border-radius:12px;padding:3px;margin:4px 0 6px}
+.tabs[hidden]{display:none}
+.tabs button{flex:1;border:0;background:none;border-radius:9px;padding:7px 8px;font-size:14px;font-weight:600;color:var(--muted)}
+.tabs button.on{background:var(--surface);color:var(--fg);box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.tabs .n{margin-left:4px;font-size:12px;background:var(--acc);color:#fff;border-radius:999px;padding:1px 7px}
+.tabs .n:empty{display:none}
+.list{overflow-y:auto;padding:4px 0 12px}
+.list>*{flex-shrink:0}
+.day{margin:16px 2px 6px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.entry{background:var(--surface);border-radius:14px;margin-bottom:8px;overflow:hidden}
+.item{width:100%;display:flex;align-items:center;gap:12px;border:0;background:none;padding:10px 12px;text-align:left}
+.item img{width:48px;height:48px;border-radius:8px;object-fit:cover;flex:none}
+.item .txt{flex:1;min-width:0;display:flex;flex-direction:column}
+.item .txt b,.item .txt small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .txt small{color:var(--muted);font-size:13px}
+.item .chev{color:var(--muted);transition:transform .2s}
+.item.open .chev{transform:rotate(180deg)}
+.panel{padding:2px 12px 12px}
+.panel .links{margin-bottom:8px}
+.panel .dz{font-size:13px;color:var(--acc)}
+
+/* ---------- onboarding ---------- */
+.onb{overflow-y:auto;padding-bottom:12px}
+.onb>*,.done>*{flex-shrink:0}
+.onb h1{font-size:26px;line-height:1.15;margin:18px 0 6px;letter-spacing:-.02em}
+.onb h2{font-size:15px;margin:22px 0 8px}
+.onb p{color:var(--muted);margin:0 0 6px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:var(--chip);border-radius:999px;padding:7px 13px;font-size:14px;display:inline-flex;align-items:center;gap:6px}
+.chip.on{background:var(--chip-on);color:var(--chip-on-fg);border-color:transparent}
+.chip .n{font-size:11px;font-weight:700;background:rgba(255,255,255,.25);border-radius:999px;min-width:18px;height:18px;display:inline-grid;place-items:center}
+.chip:disabled{opacity:.4;cursor:default}
+.range{display:flex;align-items:center;gap:12px}.range input{flex:1;accent-color:var(--acc)}
+.range output{font-weight:700;min-width:44px;text-align:right}
+.mixbar{display:flex;height:10px;border-radius:5px;overflow:hidden;margin-top:10px;background:var(--line)}
+.mixbar span{height:100%}
+.mixlegend{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;font-size:12px;color:var(--muted)}
+.mixlegend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px}
+.primary{width:100%;border:0;border-radius:14px;background:var(--acc);color:#fff;padding:14px;font-weight:650;font-size:16px;margin-top:22px}
+.primary:disabled{opacity:.45}
+.seedline{font-size:13px;color:var(--muted);margin-top:10px}
+
+/* ---------- deck ---------- */
+.stack{position:relative;flex:1;min-height:0;margin:8px 0 14px}
+.card{position:absolute;inset:0;background:var(--surface);border-radius:22px;box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;touch-action:none;user-select:none;will-change:transform}
+.card.next{transform:scale(.95) translateY(10px);opacity:.6}
+.cover{position:relative;flex:1;min-height:0;background:#000 center/cover no-repeat}
+.cover::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgba(0,0,0,.7))}
+.playstate{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:64px;height:64px;border-radius:50%;background:rgba(0,0,0,.45);display:grid;place-items:center;opacity:0;transition:opacity .2s;z-index:2}
+.paused .playstate{opacity:1}
+.playstate svg{width:26px;height:26px;fill:#fff}
+.badges{position:absolute;left:12px;top:12px;display:flex;gap:6px;z-index:2}
+.badge{background:rgba(0,0,0,.55);color:#fff;font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px;backdrop-filter:blur(6px)}
+.stamp{position:absolute;top:26px;z-index:3;font-weight:800;font-size:26px;letter-spacing:.04em;padding:4px 12px;border:4px solid;border-radius:10px;opacity:0;transform:rotate(-12deg)}
+.stamp.like{left:22px;color:var(--like);border-color:var(--like)}
+.stamp.know{left:50%;top:22px;color:#fff;border-color:#fff;font-size:20px;transform:translateX(-50%) rotate(-4deg);text-shadow:0 1px 6px rgba(0,0,0,.5)}
+.stamp.nope{right:22px;color:var(--nope);border-color:var(--nope);transform:rotate(12deg)}
+.progress{height:4px;background:rgba(255,255,255,.25);position:absolute;left:0;right:0;bottom:0;z-index:2}
+.progress i{display:block;height:100%;width:0;background:#fff}
+.info{padding:14px 16px 16px}
+.info h3{margin:0;font-size:20px;line-height:1.2;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.info .artist{margin:2px 0 8px;font-size:16px}
+.why{font-size:13px;color:var(--muted)}
+.why b{color:var(--fg);font-weight:600}
+.why span{display:inline-block;margin-top:2px;font-size:12px}
+.actions{display:flex;justify-content:center;align-items:center;gap:20px}
+.act{width:66px;height:66px;border-radius:50%;border:0;background:var(--surface);box-shadow:var(--shadow);display:grid;place-items:center}
+.act svg{width:30px;height:30px}
+.act.nope svg{stroke:var(--nope)}.act.like svg{fill:var(--like)}
+.act.know{width:58px;height:58px;align-self:center;font-size:11px;font-weight:700;line-height:1.15;color:var(--muted)}
+.act:active{transform:scale(.94)}
+.hint{text-align:center;font-size:12px;color:var(--muted);margin-top:8px}
+
+/* ---------- sheet ---------- */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .2s;z-index:10}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:50%;bottom:0;width:min(440px,100%);transform:translate(-50%,105%);background:var(--surface);border-radius:22px 22px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));z-index:11;transition:transform .25s cubic-bezier(.2,.8,.2,1)}
+.sheet.on{transform:translate(-50%,0)}
+.sheet h4{margin:0 0 2px;font-size:18px}
+.sheethead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.blockbtn{width:100%;margin-top:14px;border:1px dashed var(--line);background:none;border-radius:12px;padding:11px 12px;font-size:14px;font-weight:600;text-align:left;color:var(--muted)}
+.blockbtn.on{border-style:solid;border-color:var(--nope);color:var(--nope);background:color-mix(in srgb,var(--nope) 10%,transparent)}
+.undo{border:1px solid var(--line);background:none;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;white-space:nowrap}
+.sheet .sub{color:var(--muted);font-size:13px;margin:0 0 14px}
+.links{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.links a{display:flex;align-items:center;gap:8px;padding:11px 12px;border:1px solid var(--line);border-radius:12px;color:var(--fg);text-decoration:none;font-weight:600;font-size:14px}
+.links a i{width:10px;height:10px;border-radius:50%}
+.sheet .label{font-size:13px;font-weight:600;margin:0 0 8px}
+.row{display:flex;gap:8px;margin-top:16px}
+.row button{flex:1;border-radius:12px;padding:12px;border:1px solid var(--line);background:none;font-weight:600}
+.row.verdict{margin-top:6px}.row.verdict button{padding:14px 6px;font-size:14px}
+.row button.go{background:var(--acc);color:#fff;border-color:transparent}
+
+/* ---------- done ---------- */
+.done{overflow-y:auto;text-align:center;padding-top:20px}
+.done h1{font-size:24px;margin:10px 0 4px}
+.done p{color:var(--muted);margin:0 0 18px}
+.liked{text-align:left;display:flex;flex-direction:column;gap:8px}
+.liked a{display:flex;gap:12px;align-items:center;padding:8px;border-radius:12px;background:var(--surface);color:var(--fg);text-decoration:none}
+.liked img{width:48px;height:48px;border-radius:8px;object-fit:cover}
+.liked small{display:block;color:var(--muted)}
+.stats{font-size:12px;color:var(--muted);margin-top:18px;text-align:left;background:var(--surface);border-radius:12px;padding:12px;line-height:1.6}
+.empty{margin:auto;text-align:center;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <b>Descubre</b>
+    <div class="dots" id="dots"></div>
+    <button class="iconbtn" id="settingsBtn" title="Cambiar idiomas">Idiomas</button>
+  </header>
+
+  <nav class="tabs" id="tabs" hidden>
+    <button id="tabDeck" class="on">Descubrir</button>
+    <button id="tabList">Descubiertas<span class="n" id="tabCount"></span></button>
+  </nav>
+
+  <!-- Onboarding: idiomas -->
+  <section class="screen onb" id="onb">
+    <h1>¿En qué idioma te gusta escuchar música?</h1>
+    <p>Cada día recibes 5 canciones. Elige tu idioma principal y, si quieres, hasta 4 más por orden de preferencia.</p>
+    <h2>Idioma principal</h2>
+    <div class="chips" id="primaryChips"></div>
+    <h2>Otros idiomas <span style="font-weight:400;color:var(--muted)">(toca en orden, máx. 4)</span></h2>
+    <div class="chips" id="extraChips"></div>
+    <h2>¿Cuánta música en tu idioma principal?</h2>
+    <div class="range"><input type="range" id="mix" min="50" max="100" step="5" value="80"><output id="mixOut">80%</output></div>
+    <div class="mixbar" id="mixbar"></div>
+    <div class="mixlegend" id="mixlegend"></div>
+    <h2>Instrumentales o idioma dudoso</h2>
+    <div class="chips"><button class="chip on" id="instrChip">Incluir de vez en cuando</button></div>
+    <button class="primary" id="startBtn">Empezar</button>
+    <div class="seedline" id="seedline"></div>
+  </section>
+
+  <!-- Mazo -->
+  <section class="screen" id="deckScreen">
+    <div class="stack" id="stack"></div>
+    <div class="actions">
+      <button class="act nope" id="nopeBtn" aria-label="No me gusta"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      <button class="act know" id="knowBtn" aria-label="Ya lo conozco" title="Ya lo conozco (↑)">Ya lo<br>conozco</button>
+      <button class="act like" id="likeBtn" aria-label="Me gusta"><svg viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.1 0 3.6 1.2 4.3 2.6h2c.7-1.4 2.2-2.6 4.3-2.6 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21z"/></svg></button>
+    </div>
+    <div class="hint">Desliza o usa ← → ↑  ·  ↑ = ya lo conozco  ·  toca la portada para pausar</div>
+  </section>
+
+  <!-- Canciones descubiertas -->
+  <section class="screen list" id="listScreen"></section>
+
+  <!-- Fin del día -->
+  <section class="screen done" id="doneScreen"></section>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet"></div>
+
+<script>
+// ------------------------------------------------------------------ datos
+const LANG_NAMES = {es:"Español",en:"Inglés",pt:"Portugués",fr:"Francés",it:"Italiano",de:"Alemán",
+  ca:"Catalán",gl:"Gallego",eu:"Euskera",ja:"Japonés",ko:"Coreano",zh:"Chino",ru:"Ruso",nl:"Neerlandés",
+  sv:"Sueco",pl:"Polaco",tr:"Turco",ar:"Árabe",hi:"Hindi"};
+const PICKABLE = ["es","en","pt","fr","it","ca","gl","eu","de","ja","ko"];
+const LANG_COLORS = ["var(--acc)","#e3a33b","#2fa7b8","#d4589a","#7aa83a"];
+const PER_DAY = 5;
+const NOVELTY_SCALE = .35;
+const NOPE_REASONS = [
+  ["lang","El idioma"],["voice","La voz"],["rhythm","El ritmo"],["style","El estilo / género"],
+  ["prod","La producción"],["hook","No me engancha"],["famous","Demasiado conocido"]];
+const LIKE_REASONS = [["voice","La voz"],["lyrics","La letra"],["rhythm","El ritmo"],
+  ["instr","Guitarras / instrumentos"],["prod","La producción"]];
+// cuánto "empuja en contra" cada motivo del no (se aplica al sonido de esa canción)
+const NEG_WEIGHT = {voice:.7, rhythm:.7, style:1, prod:.6, hook:.5, none:.5};
+
+// ------------------------------------------------------------------ estado (localStorage, opcional)
+const KEY = "descubre-v1";
+const fresh = () => ({prefs:null, seen:[], likes:[], nopes:[], known:[], blocked:[], novelty:.15, langMult:{}, today:[], day:null});
+let S = fresh();
+try { const raw = localStorage.getItem(KEY); if (raw) S = {...fresh(), ...JSON.parse(raw)}; } catch {}
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
+const todayStr = () => new Date().toLocaleDateString("sv-SE");   // fecha local AAAA-MM-DD
+if (S.day !== todayStr()) { S.day = todayStr(); S.today = []; }
+
+let DECK = null, byId = {};
+const $ = id => document.getElementById(id);
+const el = (tag, props={}, ...kids) => { const e = Object.assign(document.createElement(tag), props); e.append(...kids); return e; };
+
+// ------------------------------------------------------------------ recomendador
+const dot = (a,b) => { let s=0; for (let i=0;i<a.length;i++) s+=a[i]*b[i]; return s; };
+
+function langWeights(p = S.prefs) {
+  // principal = mix%, el resto se reparte 4:3:2:1 entre los extra
+  const w = {[p.primary]: p.mix/100};
+  const rest = 1 - p.mix/100, ranks = [4,3,2,1].slice(0, p.extras.length);
+  const tot = ranks.reduce((a,b)=>a+b, 0) || 1;
+  p.extras.forEach((l,i) => w[l] = rest * ranks[i] / tot);
+  if (!p.extras.length) w[p.primary] = 1;
+  return w;
+}
+
+function score(t) {
+  const pos = DECK.tracks.filter(x => x.seed).map(x => [x, 1])
+    .concat(S.likes.map(l => [byId[l.id], 1.5]));
+  const sims = pos.map(([x,w]) => [dot(t.emb, x.emb) * w, x]).sort((a,b) => b[0]-a[0]);
+  const top = sims.slice(0,3);
+  const simPos = top.reduce((a,b)=>a+b[0],0) / top.length;
+  let simNeg = 0;
+  for (const n of S.nopes) {
+    const w = Math.max(0, ...n.reasons.map(r => NEG_WEIGHT[r] ?? 0), n.reasons.length ? 0 : NEG_WEIGHT.none);
+    if (w) simNeg = Math.max(simNeg, dot(t.emb, byId[n.id].emb) * w);
+  }
+  return {score: simPos - .6*simNeg + NOVELTY_SCALE*S.novelty*t.novelty, nearest: sims[0][1], simPos};
+}
+
+function nextTrack() {
+  // ni artistas ya vistos ni tus semillas (colaboraciones de una semilla aparecen en tops ajenos)
+  const seenArtists = new Set(S.seen.map(id => byId[id]?.artist_id));
+  DECK.tracks.filter(t => t.seed).forEach(t => seenArtists.add(t.artist_id));
+  S.blocked.forEach(b => seenArtists.add(b.id));
+  const w = langWeights();
+  for (const l in S.langMult) if (w[l]) w[l] *= S.langMult[l];
+  const pool = DECK.tracks.filter(t => !t.seed && !seenArtists.has(t.artist_id) &&
+    (w[t.lang] || (t.lang === "?" && S.prefs.instr)));
+  if (!pool.length) return null;
+  // elegir idioma para esta carta: el que más "debe" según la mezcla deseada vs. lo ya servido
+  const served = {}; S.seen.forEach(id => { const l = byId[id].lang; served[l] = (served[l]||0) + 1; });
+  const n = S.seen.length + 1;
+  const avail = new Set(pool.map(t => t.lang));
+  let lang = null, best = -Infinity;
+  for (const l in w) if (avail.has(l)) { const debt = w[l]*n - (served[l]||0); if (debt > best) { best = debt; lang = l; } }
+  // ~1 de cada 8 cartas puede ser instrumental/dudosa si se permite
+  if (S.prefs.instr && avail.has("?") && (served["?"]||0) < n/8 && Math.random() < .2) lang = "?";
+  const cands = pool.filter(t => t.lang === (lang ?? pool[0].lang)).map(t => ({t, ...score(t)}));
+  cands.sort((a,b) => b.score - a.score);
+  // un poco de aleatoriedad entre los 3 mejores: que no salga siempre lo mismo
+  return cands[Math.floor(Math.random() * Math.min(3, cands.length))];
+}
+
+// ------------------------------------------------------------------ onboarding
+let draft = {primary:"es", extras:["en"], mix:80, instr:true};
+function renderOnb() {
+  const pc = $("primaryChips"), ec = $("extraChips"); pc.innerHTML = ec.innerHTML = "";
+  for (const l of PICKABLE) {
+    pc.append(el("button", {className:"chip"+(draft.primary===l?" on":""), textContent:LANG_NAMES[l], onclick(){
+      draft.primary = l; draft.extras = draft.extras.filter(x => x!==l); renderOnb(); }}));
+    if (l === draft.primary) continue;
+    const i = draft.extras.indexOf(l);
+    const b = el("button", {className:"chip"+(i>=0?" on":""), onclick(){
+      if (i>=0) draft.extras.splice(i,1); else if (draft.extras.length<4) draft.extras.push(l); renderOnb(); }},
+      ...(i>=0 ? [el("span",{className:"n",textContent:i+1})] : []), LANG_NAMES[l]);
+    b.disabled = i<0 && draft.extras.length>=4;
+    ec.append(b);
+  }
+  $("mix").value = draft.mix; $("mixOut").textContent = draft.mix + "%";
+  $("mix").disabled = !draft.extras.length;
+  const w = langWeights(draft), bar = $("mixbar"), leg = $("mixlegend");
+  bar.innerHTML = leg.innerHTML = "";
+  Object.entries(w).forEach(([l,v],i) => {
+    bar.append(el("span",{style:`width:${v*100}%;background:${LANG_COLORS[i]}`}));
+    leg.append(el("span",{}, el("i",{style:`background:${LANG_COLORS[i]}`}), `${LANG_NAMES[l]} ${Math.round(v*100)}%`));
+  });
+  $("instrChip").classList.toggle("on", draft.instr);
+  $("instrChip").textContent = draft.instr ? "Incluir de vez en cuando" : "No incluir";
+}
+$("mix").oninput = e => { draft.mix = +e.target.value; renderOnb(); };
+$("instrChip").onclick = () => { draft.instr = !draft.instr; renderOnb(); };
+$("startBtn").onclick = () => { S.prefs = {...draft}; S.langMult = {}; save(); show("deckScreen"); deal(); };
+$("settingsBtn").onclick = () => { if (S.prefs) draft = {...S.prefs, extras:[...S.prefs.extras]}; stopAudio(); renderOnb(); show("onb"); };
+
+// ------------------------------------------------------------------ pantallas
+function show(id) {
+  for (const s of document.querySelectorAll(".screen")) s.classList.toggle("on", s.id === id);
+  $("tabs").hidden = !S.prefs || id === "onb";
+  $("tabDeck").classList.toggle("on", id !== "listScreen");
+  $("tabList").classList.toggle("on", id === "listScreen");
+  $("tabCount").textContent = discoveries().length || "";
+  renderDots();
+}
+
+// ------------------------------------------------------------------ canciones descubiertas
+// Descubiertas = canciones nuevas que te han gustado. Las que ya conocías no cuentan como descubrimiento.
+const discoveries = () => S.likes.filter(l => !l.known && byId[l.id]);
+function fmtDay(iso) {
+  const days = Math.round((new Date(todayStr() + "T12:00:00") - new Date(iso + "T12:00:00")) / 864e5);
+  if (days === 0) return "Hoy";
+  if (days === 1) return "Ayer";
+  return new Date(iso + "T12:00:00").toLocaleDateString("es-ES", {day:"numeric", month:"long", year:"numeric"});
+}
+function renderList() {
+  const box = $("listScreen"); box.innerHTML = "";
+  const items = discoveries().reverse();                 // las más recientes primero
+  if (!items.length) {
+    box.append(el("div",{className:"empty",textContent:"Aún no has descubierto ninguna canción. Las que marques con ♥ aparecerán aquí."}));
+    return;
+  }
+  let lastDay = null;
+  for (const it of items) {
+    const date = it.date || todayStr(), t = byId[it.id];
+    if (date !== lastDay) { box.append(el("h5",{className:"day",textContent:fmtDay(date)})); lastDay = date; }
+    const panel = el("div",{className:"panel",hidden:true}, listenLinks(t),
+      el("a",{className:"dz",href:t.link,target:"_blank",rel:"noopener",textContent:"Abrir en Deezer ↗"}));
+    const row = el("button",{className:"item",onclick(){
+      panel.hidden = !panel.hidden; row.classList.toggle("open", !panel.hidden);
+      row.setAttribute("aria-expanded", String(!panel.hidden)); }},
+      el("img",{src:t.cover,alt:""}),
+      el("span",{className:"txt"}, el("b",{textContent:t.title}), el("small",{textContent:t.artist})),
+      el("span",{className:"chev",textContent:"▾"}));
+    row.setAttribute("aria-expanded","false");
+    box.append(el("div",{className:"entry"}, row, panel));
+  }
+}
+function goTab(tab) {
+  if (!S.prefs) return;
+  if (tab === "list") { audio.pause(); renderList(); show("listScreen"); return; }
+  if (S.today.length >= PER_DAY) return finishDay();
+  show("deckScreen");
+  const card = document.querySelector(".card");
+  if (!card) return deal();
+  if (audio.paused && !card.classList.contains("paused")) audio.play().catch(() => card.classList.add("paused"));
+}
+$("tabDeck").onclick = () => goTab("deck");
+$("tabList").onclick = () => goTab("list");
+function renderDots() {
+  const d = $("dots"); d.innerHTML = "";
+  if (!S.prefs) return;
+  for (let i=0;i<PER_DAY;i++) d.append(el("i",{className: i < S.today.length ? "done" : ""}));
+}
+
+// ------------------------------------------------------------------ cartas
+let current = null, audio = new Audio();
+audio.preload = "auto";
+function stopAudio(){ audio.pause(); }
+
+// Parecido de la candidata con su semilla más cercana, relativo al resto del mazo (0-1)
+let SIMDIST = null;
+function simPercentile(v) {
+  if (!SIMDIST) {
+    const seeds = DECK.tracks.filter(t => t.seed);
+    SIMDIST = DECK.tracks.filter(t => !t.seed).map(t => Math.max(...seeds.map(x => dot(t.emb, x.emb)))).sort((a,b) => a-b);
+  }
+  let lo = 0; while (lo < SIMDIST.length && SIMDIST[lo] <= v) lo++;
+  return lo / SIMDIST.length;
+}
+// En qué se parecen, SOLO con medidas reales del audio (no etiquetas inventadas por un modelo)
+function sharedTraits(a, b) {
+  const out = [];
+  const r = a.bpm / b.bpm;
+  const octave = [1, 2, .5].some(k => Math.abs(r / k - 1) < .08);
+  if (octave) out.push([Math.abs(r - 1), `tempo parecido (~${a.bpm} BPM)`]);
+  [["energy","energía parecida"],["bright","timbre / brillo parecido"],["pulse","pegada rítmica parecida"]]
+    .forEach(([k, txt]) => { const d = Math.abs(a[k] - b[k]); if (d < .15) out.push([d, txt]); });
+  return out.sort((x, y) => x[0] - y[0]).slice(0, 2).map(x => x[1]);
+}
+function whyHtml(t, near) {
+  const p = simPercentile(dot(t.emb, near.emb)), traits = sharedTraits(t, near);
+  const ref = `<b>${esc(near.artist)} – ${esc(near.title)}</b>`;
+  let main;
+  if (p >= .75) main = `${near.seed ? "Muy parecida a" : "Muy parecida a la que te gustó:"} ${ref}`;
+  else if (p >= .5) main = `${near.seed ? "Parecida a" : "Parecida a la que te gustó:"} ${ref}`;
+  else main = "Para ampliar tu gusto · se aleja un poco de lo que ya has escuchado";
+  return main + (p >= .5 && traits.length ? `<br><span>${traits.join(" · ")}</span>` : "");
+}
+const esc = x => String(x).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function cardEl(rec) {
+  const t = rec.t, near = rec.nearest;
+  const fans = t.fans >= 1000 ? (t.fans/1000).toFixed(t.fans<10000?1:0).replace(".",",")+" k" : t.fans;
+  const langTxt = t.lang === "?" ? "Instrumental / dudoso" : LANG_NAMES[t.lang] || t.lang.toUpperCase();
+  const c = el("div",{className:"card"},
+    el("div",{className:"cover", style:`background-image:url("${t.cover.replace("250x250","500x500")}")`},
+      el("div",{className:"badges"}, el("span",{className:"badge",textContent:langTxt}), el("span",{className:"badge",textContent:fans+" fans"})),
+      el("div",{className:"stamp like",textContent:"ME GUSTA"}), el("div",{className:"stamp nope",textContent:"NO"}), el("div",{className:"stamp know",textContent:"YA LO CONOZCO"}),
+      el("div",{className:"playstate",innerHTML:'<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>'}),
+      el("div",{className:"progress"}, el("i"))),
+    el("div",{className:"info"},
+      el("h3",{textContent:t.title}), el("div",{className:"artist",textContent:t.artist}),
+      el("div",{className:"why", innerHTML: whyHtml(t, near)})));
+  return c;
+}
+
+function deal() {
+  renderDots();
+  if (S.today.length >= PER_DAY) return finishDay();
+  const rec = nextTrack();
+  if (!rec) { $("stack").innerHTML = ""; $("stack").append(el("div",{className:"empty",textContent:"No quedan canciones en el mazo para tus idiomas. Prueba a añadir otro idioma."})); return; }
+  current = rec;
+  const stack = $("stack"); stack.innerHTML = "";
+  const card = cardEl(rec); stack.append(card);
+  audio.src = `audio/${rec.t.id}.mp3`;
+  audio.play().catch(() => card.classList.add("paused"));
+  bindDrag(card);
+}
+
+audio.ontimeupdate = () => {
+  const bar = document.querySelector(".card .progress i");
+  if (bar && audio.duration) bar.style.width = (audio.currentTime/audio.duration*100) + "%";
+};
+audio.onended = () => document.querySelector(".card")?.classList.add("paused");
+
+function bindDrag(card) {
+  let x0=0, y0=0, dx=0, dy=0, dragging=false, moved=false;
+  const like = card.querySelector(".stamp.like"), nope = card.querySelector(".stamp.nope"), know = card.querySelector(".stamp.know");
+  card.onpointerdown = e => { dragging=true; moved=false; x0=e.clientX; y0=e.clientY; card.setPointerCapture(e.pointerId); card.style.transition="none"; };
+  card.onpointermove = e => {
+    if (!dragging) return;
+    dx = e.clientX-x0; dy = e.clientY-y0; if (Math.abs(dx)+Math.abs(dy) > 6) moved = true;
+    card.style.transform = `translate(${dx}px,${dy*.3}px) rotate(${dx/18}deg)`;
+    const up = -dy > Math.abs(dx);   // gesto dominante: hacia arriba
+    like.style.opacity = up ? 0 : Math.max(0, Math.min(1, dx/90)); nope.style.opacity = up ? 0 : Math.max(0, Math.min(1, -dx/90));
+    know.style.opacity = up ? Math.max(0, Math.min(1, -dy/90)) : 0;
+  };
+  card.onpointerup = () => {
+    if (!dragging) return; dragging=false;
+    if (!moved) { togglePlay(card); return; }
+    if (-dy > 110 && -dy > Math.abs(dx)) flingKnown(card);
+    else if (Math.abs(dx) > 110) fling(card, dx > 0 ? 1 : -1);
+    else { card.style.transition="transform .25s"; card.style.transform=""; like.style.opacity=nope.style.opacity=know.style.opacity=0; }
+    dx = dy = 0;
+  };
+}
+function togglePlay(card) {
+  if (audio.paused) { audio.play(); card.classList.remove("paused"); }
+  else { audio.pause(); card.classList.add("paused"); }
+}
+function fling(card, dir) {
+  if (!card || card.dataset.gone) return; card.dataset.gone = 1;
+  card.querySelector(dir>0 ? ".stamp.like" : ".stamp.nope").style.opacity = 1;
+  card.style.transition = "transform .35s ease-in";
+  card.style.transform = `translate(${dir*600}px,40px) rotate(${dir*30}deg)`;
+  setTimeout(() => dir > 0 ? onLike() : onNope(), 220);
+}
+function flingKnown(card) {
+  if (!card || card.dataset.gone) return; card.dataset.gone = 1;
+  card.querySelector(".stamp.know").style.opacity = 1;
+  card.style.transition = "transform .35s ease-in, opacity .35s";
+  card.style.transform = "translateY(-700px) scale(.9)"; card.style.opacity = 0;
+  setTimeout(onKnown, 250);
+}
+// "Ya la conocía" NO es un voto de gusto por sí mismo: se pregunta qué te parece para no perder esa señal.
+// Sea cual sea la respuesta, no cuenta como una de las 5 del día (no es un descubrimiento) y ese
+// artista no vuelve a salir; además se busca algo un poco más novedoso.
+function onKnown() {
+  const t = current.t;
+  const finish = verdict => {
+    if (verdict === "like") S.likes.push({id:t.id, reasons:[], known:true});
+    else if (verdict === "nope") S.nopes.push({id:t.id, reasons:[], known:true});
+    else S.known.push({id:t.id});
+    S.seen.push(t.id); S.novelty = Math.min(.6, S.novelty + .03);
+    save(); closeSheet(); deal();
+  };
+  openSheet(
+    el("div",{className:"sheethead"}, el("h4",{textContent:"Ya la conocías"}), undoBtn()),
+    el("p",{className:"sub",textContent:`${t.artist} – ${t.title}. ¿Y qué te parece? Así sé si es de lo tuyo.`}),
+    el("div",{className:"row verdict"},
+      el("button",{textContent:"👍 Me gusta",onclick:() => finish("like")}),
+      el("button",{textContent:"😐 Me da igual",onclick:() => finish("neutral")}),
+      el("button",{textContent:"👎 No me gusta",onclick:() => finish("nope")})));
+}
+$("knowBtn").onclick = () => flingKnown(document.querySelector(".card"));
+$("likeBtn").onclick = () => fling(document.querySelector(".card"), 1);
+$("nopeBtn").onclick = () => fling(document.querySelector(".card"), -1);
+document.addEventListener("keydown", e => {
+  if (!$("deckScreen").classList.contains("on") || $("sheet").classList.contains("on")) return;
+  if (e.key === "ArrowRight") fling(document.querySelector(".card"), 1);
+  if (e.key === "ArrowLeft") fling(document.querySelector(".card"), -1);
+  if (e.key === "ArrowUp") { e.preventDefault(); flingKnown(document.querySelector(".card")); }
+  if (e.key === " ") { e.preventDefault(); const c = document.querySelector(".card"); c && togglePlay(c); }
+});
+
+// ------------------------------------------------------------------ hojas inferiores
+function openSheet(...kids) { const s = $("sheet"); s.innerHTML = ""; s.append(...kids); s.classList.add("on"); $("scrim").classList.add("on"); }
+function closeSheet() { $("sheet").classList.remove("on"); $("scrim").classList.remove("on"); }
+
+function chipGroup(options, picked) {
+  return el("div",{className:"chips"}, ...options.map(([k,label]) => el("button",{className:"chip", textContent:label, onclick(){
+    this.classList.toggle("on"); picked.has(k) ? picked.delete(k) : picked.add(k); }})));
+}
+
+// Devuelve la carta a la pantalla sin guardar el voto: así se puede cambiar de opinión
+function undoSwipe() {
+  closeSheet();
+  const card = document.querySelector(".card");
+  if (!card) return;
+  delete card.dataset.gone;
+  card.style.transition = "transform .3s cubic-bezier(.2,.8,.2,1)";
+  card.style.transform = ""; card.style.opacity = "";
+  card.querySelectorAll(".stamp").forEach(s => s.style.opacity = 0);
+  if (audio.paused) audio.play().catch(() => card.classList.add("paused"));
+}
+const undoBtn = () => el("button", {className: "undo", textContent: "↺ Cambiar de opinión", onclick: undoSwipe});
+
+function listenLinks(t) {
+  const q = encodeURIComponent(`${t.artist} ${t.title}`);
+  const L = [["Spotify",`https://open.spotify.com/search/${q}`,"#1db954"],
+             ["YouTube Music",`https://music.youtube.com/search?q=${q}`,"#ff0033"],
+             ["Apple Music",`https://music.apple.com/es/search?term=${q}`,"#fa2d48"],
+             ["Tidal",`https://listen.tidal.com/search?q=${q}`,"#888"]];
+  return el("div",{className:"links"}, ...L.map(([n,u,c]) => el("a",{href:u,target:"_blank",rel:"noopener"}, el("i",{style:`background:${c}`}), n)));
+}
+
+function onLike() {
+  const t = current.t, picked = new Set();
+  openSheet(
+    el("div",{className:"sheethead"}, el("h4",{textContent:"¡Guardada!"}), undoBtn()),
+    el("p",{className:"sub",textContent:`${t.artist} – ${t.title}. Escúchala entera en:`}),
+    listenLinks(t),
+    el("p",{className:"label",textContent:"¿Qué es lo que más te gusta? (opcional)"}),
+    chipGroup(LIKE_REASONS, picked),
+    el("div",{className:"row"}, el("button",{className:"go",textContent:"Siguiente",onclick(){
+      record("likes", {id:t.id, reasons:[...picked]}); closeSheet(); deal(); }})));
+}
+
+function onNope() {
+  const t = current.t, picked = new Set();
+  let block = false;
+  const blockBtn = el("button", {className:"blockbtn", onclick(){
+    block = !block; this.classList.toggle("on", block);
+    this.textContent = block ? `🚫 No te volveré a recomendar a ${t.artist}` : `🚫 No recomendar más a ${t.artist}`;
+  }, textContent:`🚫 No recomendar más a ${t.artist}`});
+  const done = () => {
+    const reasons = [...picked];
+    if (block) S.blocked.push({id:t.artist_id, name:t.artist});
+    if (picked.has("lang") && t.lang !== "?") S.langMult[t.lang] = (S.langMult[t.lang] ?? 1) * .6;
+    if (picked.has("famous")) S.novelty = Math.min(.6, S.novelty + .1);
+    record("nopes", {id:t.id, reasons}); closeSheet(); deal();
+  };
+  openSheet(
+    el("div",{className:"sheethead"}, el("h4",{textContent:"¿Por qué no?"}), undoBtn()),
+    el("p",{className:"sub",textContent:"Opcional, pero así acierto antes. Puedes marcar varias."}),
+    chipGroup(NOPE_REASONS, picked),
+    blockBtn,
+    el("div",{className:"row"}, el("button",{textContent:"Saltar",onclick(){ picked.clear(); done(); }}),
+                                el("button",{className:"go",textContent:"Listo",onclick:done})));
+}
+
+function record(kind, entry) {
+  entry.date = todayStr(); S[kind].push(entry); S.seen.push(entry.id); S.today.push(entry.id); save();
+}
+
+// ------------------------------------------------------------------ fin del día
+function finishDay() {
+  stopAudio();
+  const likes = S.likes.filter(l => S.today.includes(l.id)).map(l => byId[l.id]);
+  const box = $("doneScreen"); box.innerHTML = "";
+  const totalNopes = S.nopes.length, reasons = {};
+  S.nopes.forEach(n => n.reasons.forEach(r => reasons[r] = (reasons[r]||0)+1));
+  const rtxt = Object.entries(reasons).sort((a,b)=>b[1]-a[1])
+    .filter(([k]) => NOPE_REASONS.some(r => r[0] === k))
+    .map(([k,v]) => `${NOPE_REASONS.find(r=>r[0]===k)[1].toLowerCase()} (${v})`).join(", ") || "—";
+  const langs = Object.entries(S.langMult).map(([l,m]) => `${LANG_NAMES[l]} ×${m.toFixed(2)}`).join(", ") || "sin cambios";
+  box.append(
+    el("div",{style:"font-size:44px",textContent:"🎧"}),
+    el("h1",{textContent: likes.length ? `Hoy te han gustado ${likes.length} de ${PER_DAY}` : "Hoy no ha habido suerte"}),
+    el("p",{textContent:"Mañana tendrás 5 nuevas, afinadas con lo que acabas de votar."}),
+    el("div",{className:"liked"}, ...likes.map(t => el("a",{href:`https://open.spotify.com/search/${encodeURIComponent(t.artist+" "+t.title)}`,target:"_blank",rel:"noopener"},
+      el("img",{src:t.cover,alt:""}), el("div",{}, el("b",{textContent:t.title}), el("small",{textContent:t.artist}))))),
+    el("div",{className:"stats",innerHTML:
+      `<b>Lo que ha aprendido (prototipo)</b><br>Votadas en total: ${S.seen.length} · me gusta: ${S.likes.length} · no: ${totalNopes} · ya conocidas: ${S.known.length + S.likes.filter(l=>l.known).length + S.nopes.filter(n=>n.known).length}<br>`+
+      `Motivos del no: ${rtxt}<br>Peso de idiomas: ${langs}<br>Bonus de novedad: ${S.novelty.toFixed(2)}`}),
+    ...(S.blocked.length ? [el("div",{className:"stats"}, el("b",{textContent:"Artistas bloqueados"}),
+      ...S.blocked.map(b => el("div",{style:"display:flex;justify-content:space-between;align-items:center"},
+        el("span",{textContent:b.name}),
+        el("button",{className:"iconbtn",textContent:"Desbloquear",onclick(){ S.blocked = S.blocked.filter(x => x.id !== b.id); save(); finishDay(); }}))))] : []),
+    el("button",{className:"primary",textContent:"Otra ronda (modo prueba)",onclick(){ S.today=[]; save(); show("deckScreen"); deal(); }}),
+    el("button",{className:"iconbtn",style:"margin-top:10px",textContent:"Borrar todo y empezar de cero",onclick(){
+      S = fresh(); S.day = todayStr(); save(); renderOnb(); show("onb"); }}));
+  show("doneScreen");
+}
+
+// ------------------------------------------------------------------ arranque
+fetch("deck.json", {cache:"no-store"}).then(r => r.json()).then(d => {
+  DECK = d; d.tracks.forEach(t => byId[t.id] = t);
+  S.seen = S.seen.filter(id => byId[id]); S.likes = S.likes.filter(l => byId[l.id]); S.nopes = S.nopes.filter(n => byId[n.id]);
+  const counts = {}; d.tracks.filter(t=>!t.seed).forEach(t => counts[t.lang] = (counts[t.lang]||0)+1);
+  $("seedline").textContent = `Prototipo · semillas: ${d.seeds.join(", ")} · ${Object.values(counts).reduce((a,b)=>a+b,0)} canciones en el mazo (` +
+    Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([l,n]) => `${l==="?"?"dudoso":l} ${n}`).join(", ") + ")";
+  if (S.prefs) { show("deckScreen"); deal(); } else { renderOnb(); show("onb"); }
+}).catch(() => { document.body.innerHTML = '<p style="padding:24px">No encuentro deck.json. Ejecuta primero build_deck.py.</p>'; });
+</script>
+</body>
+</html>
