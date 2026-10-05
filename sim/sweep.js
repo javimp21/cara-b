@@ -2,16 +2,13 @@
 // Uso:  node sim/sweep.js [--runs 40] [--rounds 12]
 const S = require("./simulate.js");
 
+const NO_REPEAT = {like: Infinity, nope: Infinity, neutral: Infinity};
 const CONFIGS = [
-  {name: "actual", opts: {}},
-  {name: "semillas decaen K=2 + me gusta ×2,5", opts: {seedDecayK: 2, likeW: 2.5}},
-  {name: "explorar 20 % (decae ×0,85/ronda)", opts: {exploreP: .2, exploreDecay: .85}},
-  {name: "explorar 35 % (decae ×0,8/ronda)", opts: {exploreP: .35, exploreDecay: .8}},
-  {name: "diversidad en la ronda 0,15", opts: {mmr: .15}},
-  {name: "diversidad en la ronda 0,3", opts: {mmr: .3}},
-  {name: "diversidad en la ronda 0,5", opts: {mmr: .5}},
-  {name: "explorar 20 % + diversidad 0,3", opts: {exploreP: .2, exploreDecay: .85, mmr: .3}},
-  {name: "explorar 35 % + diversidad 0,3", opts: {exploreP: .35, exploreDecay: .8, mmr: .3}},
+  {name: "sin repetir artistas", opts: {artistGap: NO_REPEAT}},
+  {name: "repetir: me gusta 10 / no 60 / igual 30", opts: {}},
+  {name: "repetir pronto: 5 / 30 / 15", opts: {artistGap: {like: 5, nope: 30, neutral: 15}}},
+  {name: "repetir poco: 20 / 100 / 60", opts: {artistGap: {like: 20, nope: 100, neutral: 60}}},
+  {name: "solo repiten los que gustan: 10 / ∞ / ∞", opts: {artistGap: {like: 10, nope: Infinity, neutral: Infinity}}},
 ];
 const personas = Object.keys(S.PERSONAS);
 const RUNS = S.RUNS;

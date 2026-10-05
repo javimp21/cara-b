@@ -7,6 +7,7 @@ Debe ejecutarse DESPUÉS de finalize_deck.py y aspects.py, que regeneran el mazo
 import colorsys
 import io
 import json
+import os
 
 import requests
 from PIL import Image
@@ -35,7 +36,7 @@ def dominant(img, k=8):
 
 def main():
     deck = json.load(open("cache/deck.json", encoding="utf-8"))
-    cache = {}
+    cache = json.load(open("cache/colors.json", encoding="utf-8")) if os.path.exists("cache/colors.json") else {}
     for i, t in enumerate(deck["tracks"], 1):
         url = t["cover"]
         if url not in cache:
@@ -45,6 +46,7 @@ def main():
             except Exception:
                 cache[url] = "#6b6258"                      # gris cálido neutro si falla la descarga
         t["color"] = cache[url]
+    json.dump(cache, open("cache/colors.json", "w", encoding="utf-8"))
     json.dump(deck, open("cache/deck.json", "w", encoding="utf-8"), ensure_ascii=False)
     print(f"\n{len(set(cache.values()))} colores distintos en {len(cache)} portadas")
 

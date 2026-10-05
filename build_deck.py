@@ -1,14 +1,25 @@
-"""Genera el mazo (cache/deck.json) que usa la app de tarjetas (cache/app.html).
+"""Crea y AMPLÍA el catálogo de Cara B (cache/catalog.json).
 
-Reutiliza discover.py (Deezer + CLAP) y añade:
-  - Idioma cantado de cada canción, detectado con Whisper sobre la preview.
-  - Popularidad RELATIVA (percentil de fans dentro del pool): en España casi todo
-    el mundo usa Spotify y los fans de Deezer no son comparables entre países.
-  - Embeddings centrados y reducidos a 64 dimensiones para que la app pueda
-    recalcular las recomendaciones en el navegador tras cada swipe.
+El catálogo es la lista de canciones candidatas con sus datos básicos (artista, portada, enlace, idioma).
+Es incremental: cada ejecución con --extend añade artistas nuevos sin tocar ni recalcular lo ya hecho.
+Después, `python pipeline.py` calcula (también de forma incremental) los vectores de audio y genera el
+mazo que lee la app.
 
 Uso:
+  # primera vez: grafo de artistas relacionados a partir de unas semillas
   python build_deck.py --seeds "Barry B, Sanguijuelas del Guadiana, Venturi"
+
+  # ampliar desde las semillas actuales: más lejos en el grafo (3 saltos) y hasta 500 artistas nuevos
+  python build_deck.py --extend --hops 3 --max-artists 500
+
+  # ampliar a partir de lo que te ha gustado (archivo exportado desde la app con ?dev)
+  python build_deck.py --extend --votes votos.json
+
+  # añadir nuevos gustos declarados (sus canciones pasan a ser semillas del mazo)
+  python build_deck.py --extend --seeds "Cala Vento, Hinds"
+
+Idioma de cada canción, por orden de fiabilidad: letra (LRCLIB) > idioma del artista (por sus otras
+letras) > audio (Whisper) + pistas del título. Whisper solo se ejecuta para los artistas sin letras.
 """
 import argparse
 import json
@@ -17,20 +28,24 @@ import re
 import librosa
 import numpy as np
 import requests
-import torch
-from transformers import WhisperForConditionalGeneration, WhisperProcessor
 
-from discover import save_api_cache, AUDIO, CACHE, Embedder, crawl_related, download, find_artist, top_tracks
+from discover import AUDIO, CACHE, crawl_related, download, find_artist, save_api_cache, top_tracks
 
+CATALOG = CACHE / "catalog.json"
 WHISPER_ID = "openai/whisper-small"
 # Solo idiomas plausibles en música: evita que Whisper "invente" jemer o latín cuando duda
 LANGS = ["es", "en", "pt", "fr", "it", "de", "ca", "gl", "eu", "ja", "ko", "zh",
          "ru", "nl", "sv", "pl", "tr", "ar", "hi"]
-MIN_CONF = 0.45  # por debajo -> "?" (instrumental, mucha reverb, poca voz...)
+MIN_CONF = 0.45       # por debajo -> "?" (instrumental, mucha reverb, poca voz...)
+MIN_SECONDS = 20      # Deezer sirve a veces previews de ~1 s: no sirven para votar
 
 
+# ---------------------------------------------------------------- idioma por audio (solo si no hay letra)
 class LangDetector:
     def __init__(self):
+        import torch
+        from transformers import WhisperForConditionalGeneration, WhisperProcessor
+        self.torch = torch
         print(f"Cargando {WHISPER_ID}...")
         self.proc = WhisperProcessor.from_pretrained(WHISPER_ID)
         self.model = WhisperForConditionalGeneration.from_pretrained(WHISPER_ID).eval()
@@ -40,20 +55,20 @@ class LangDetector:
         self.cache_file = CACHE / "langs.json"
         self.cache = json.loads(self.cache_file.read_text()) if self.cache_file.exists() else {}
 
-    @torch.no_grad()
     def __call__(self, track):
         key = str(track["id"])
         if key not in self.cache:
+            torch = self.torch
             y, _ = librosa.load(download(track), sr=16_000)
             # 3 ventanas de 10 s: la voz puede no entrar hasta mitad de la preview
             segs = [y[o * 16_000:(o + 10) * 16_000] for o in (0, 10, 20)]
             segs = [s for s in segs if len(s) > 16_000] or [y]
             feats = self.proc(segs, sampling_rate=16_000, return_tensors="pt").input_features
             dec = torch.full((len(segs), 1), self.sot)
-            logits = self.model(input_features=feats, decoder_input_ids=dec).logits[:, -1, self.ids]
+            with torch.no_grad():
+                logits = self.model(input_features=feats, decoder_input_ids=dec).logits[:, -1, self.ids]
             p = torch.softmax(logits, -1)
-            # las ventanas sin voz dan probabilidades "planas": pesan menos
-            w = p.max(-1).values ** 2
+            w = p.max(-1).values ** 2          # las ventanas sin voz dan probabilidades "planas": pesan menos
             p = (p * w[:, None]).sum(0) / w.sum()
             self.cache[key] = [round(float(x), 4) for x in p]
         return np.array(self.cache[key])
@@ -62,12 +77,12 @@ class LangDetector:
         self.cache_file.write_text(json.dumps(self.cache))
 
 
-ES_HINT = re.compile(r"[ñáéíóú¿¡]|(el|la|los|las|de|del|que|mi|tu|te|me|yo|no|en|con|por|para|una?|y|amor|noche|corazón|sin|como|vida)", re.I)
-EN_HINT = re.compile(r"(the|you|your|my|love|of|and|is|i'm|don't|me|it|in|on|night|baby)", re.I)
+ES_HINT = re.compile(r"[ñáéíóú¿¡]|\b(el|la|los|las|de|del|que|mi|tu|te|me|yo|no|en|con|por|para|una?|y|amor|noche|corazón|sin|como|vida)\b", re.I)
+EN_HINT = re.compile(r"\b(the|you|your|my|love|of|and|is|i'm|don't|me|it|in|on|night|baby)\b", re.I)
 
 
 def text_prior(title):
-    """Pista barata a partir del título (en la app real: letras vía API o metadatos)."""
+    """Pista barata a partir del título."""
     prior = np.ones(len(LANGS))
     es, en = len(ES_HINT.findall(title)), len(EN_HINT.findall(title))
     prior[LANGS.index("es")] *= 1 + 1.5 * min(es, 2)
@@ -126,17 +141,31 @@ def fetch_lyrics_langs(tracks):
 
 
 def assign_languages(tracks):
-    """Prioridad: idioma de la letra > idioma del artista (por sus otras letras) >
-    audio (Whisper) + pistas del título + resto de canciones del artista."""
+    """Prioridad: letra > idioma del artista (por sus otras letras) > audio + título + resto del artista.
+    Whisper solo se carga y ejecuta para los artistas que no tienen ninguna letra disponible."""
     fetch_lyrics_langs(tracks)
+    artist_lyrics = {}
     for t in tracks:
-        p = t["lang_p"] * text_prior(t["title"])
-        t["lang_p"] = p / p.sum()
-    by_artist, artist_lyrics = {}, {}
-    for t in tracks:
-        by_artist.setdefault(t["artist_id"], []).append(t["lang_p"])
         if t["lyrics_lang"]:
             artist_lyrics.setdefault(t["artist_id"], []).append(t["lyrics_lang"])
+    need_audio = [t for t in tracks if t["artist_id"] not in artist_lyrics]
+    if need_audio:
+        detector = LangDetector()
+        for i, t in enumerate(need_audio, 1):
+            print(f"\rIdioma por audio {i}/{len(need_audio)}", end="", flush=True)
+            try:
+                p = detector(t) * text_prior(t["title"])
+                t["lang_p"] = p / p.sum()
+            except Exception as e:
+                print(f"\n  sin idioma {t['artist']} – {t['title']}: {e}")
+                t["lang_p"] = np.ones(len(LANGS)) / len(LANGS)
+            if i % 25 == 0:
+                detector.save()
+        detector.save()
+        print()
+    by_artist = {}
+    for t in need_audio:
+        by_artist.setdefault(t["artist_id"], []).append(t["lang_p"])
     for t in tracks:
         if t["lyrics_lang"]:
             t["lang"], t["lang_conf"], t["lang_src"] = t["lyrics_lang"], 1.0, "letra"
@@ -147,93 +176,132 @@ def assign_languages(tracks):
             p = 0.6 * t["lang_p"] + 0.4 * np.mean(by_artist[t["artist_id"]], axis=0)
             i = int(p.argmax())
             t["lang"], t["lang_conf"], t["lang_src"] = LANGS[i], round(float(p[i]), 2), "audio"
+        if t["lang_conf"] < MIN_CONF:
+            t["lang"] = "?"
 
 
-def percentile(values):
-    order = np.argsort(np.argsort(values))
-    return order / max(len(values) - 1, 1)
+# ---------------------------------------------------------------- catálogo
+def load_catalog():
+    return json.loads(CATALOG.read_text(encoding="utf-8")) if CATALOG.exists() else {"seeds": [], "tracks": []}
+
+
+def save_catalog(cat):
+    CATALOG.write_text(json.dumps(cat, ensure_ascii=False), encoding="utf-8")
+
+
+def usable_preview(track):
+    """Descarga la preview y comprueba que dura lo que debe. Devuelve False si no sirve."""
+    try:
+        path = download(track)
+        if librosa.get_duration(path=str(path)) < MIN_SECONDS:
+            path.unlink(missing_ok=True)
+            return False
+        return True
+    except Exception as e:
+        print(f"\n  sin preview {track['artist']} – {track['title']}: {e}")
+        return False
+
+
+def votes_to_seeds(path, cat):
+    """Artistas de las canciones que te han gustado (archivo exportado desde la app con ?dev)."""
+    log = json.loads(open(path, encoding="utf-8").read()).get("log", [])
+    liked = {e["id"] for e in log if e["kind"] in ("like", "known-like")}
+    by_id = {t["id"]: t for t in cat["tracks"]}
+    artists = {}
+    for i in liked:
+        t = by_id.get(i)
+        if t:
+            artists[t["artist_id"]] = {"id": t["artist_id"], "name": t["artist"], "nb_fan": t["fans"]}
+    return list(artists.values())
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--seeds", required=True)
+    ap.add_argument("--seeds", default="", help="artistas separados por comas")
+    ap.add_argument("--extend", action="store_true", help="añadir al catálogo existente")
+    ap.add_argument("--votes", help="votos exportados desde la app: sus artistas favoritos amplían el grafo")
     ap.add_argument("--hops", type=int, default=2)
     ap.add_argument("--related", type=int, default=15)
     ap.add_argument("--max-artists", type=int, default=140)
     ap.add_argument("--tracks", type=int, default=2, help="canciones por artista")
+    ap.add_argument("--min-fans", type=int, default=300)
+    ap.add_argument("--max-fans", type=int, help="por encima = demasiado conocido (por defecto, como el catálogo actual)")
     ap.add_argument("--drop-popular", type=float, default=0.12,
-                    help="descarta este %% de artistas más conocidos del pool")
-    ap.add_argument("--dims", type=int, default=64)
+                    help="solo en la primera creación: descarta este %% de artistas más conocidos del grafo")
     args = ap.parse_args()
     AUDIO.mkdir(parents=True, exist_ok=True)
 
-    seeds = [find_artist(n.strip()) for n in args.seeds.split(",") if n.strip()]
-    print("Semillas:", ", ".join(f"{s['name']} ({s['nb_fan']} fans)" for s in seeds))
-    graph = crawl_related(seeds, args.hops, args.related)
-    seed_ids = {s["id"] for s in seeds}
-    pool = [a for a in graph.values() if a["id"] not in seed_ids and a["nb_fan"] > 0]
+    cat = load_catalog() if args.extend else {"seeds": [], "tracks": []}
+    if args.extend and not cat["tracks"]:
+        raise SystemExit("No hay catálogo todavía: ejecuta primero sin --extend y con --seeds.")
+    known_artists = {t["artist_id"] for t in cat["tracks"]}
+    known_tracks = {t["id"] for t in cat["tracks"]}
 
-    pct = percentile(np.array([a["nb_fan"] for a in pool]))
-    for a, p in zip(pool, pct):
-        a["pop_pct"] = float(p)
-    too_famous = [a["name"] for a in pool if a["pop_pct"] > 1 - args.drop_popular]
-    print(f"Grafo: {len(graph)} artistas. Fuera por demasiado conocidos: {', '.join(too_famous)}")
-    pool = [a for a in pool if a["pop_pct"] <= 1 - args.drop_popular]
-    pool.sort(key=lambda a: (a["hop"], -a["nb_fan"]))
-    pool = pool[:args.max_artists]
+    named = [find_artist(n.strip()) for n in args.seeds.split(",") if n.strip()]          # gustos declarados
+    crawl_seeds = list(named)
+    if args.votes:
+        liked = votes_to_seeds(args.votes, cat)
+        print(f"{len(liked)} artistas con canciones que te gustaron: {', '.join(a['name'] for a in liked[:8])}...")
+        crawl_seeds += [a for a in liked if a["id"] not in {n["id"] for n in crawl_seeds}]
+    if not crawl_seeds and args.extend:      # sin indicar nada: se sigue desde las semillas actuales del catálogo
+        seen = {}
+        for t in cat["tracks"]:
+            if t["seed"]:
+                seen[t["artist_id"]] = {"id": t["artist_id"], "name": t["artist"], "nb_fan": t["fans"]}
+        crawl_seeds = list(seen.values())
+    if not crawl_seeds:
+        raise SystemExit("Indica --seeds o --votes.")
+    print("Semillas del grafo:", ", ".join(f"{s['name']} ({s['nb_fan']} fans)" for s in crawl_seeds[:12]))
 
-    seed_tracks = [{**t, "seed": True, "nb_fan": s["nb_fan"], "hop": 0, "pop_pct": 1.0}
-                   for s in seeds for t in top_tracks(s["id"], 3)]
-    cands = [{**t, "seed": False, "nb_fan": a["nb_fan"], "hop": a["hop"], "pop_pct": a["pop_pct"]}
-             for a in pool for t in top_tracks(a["id"], args.tracks)]
-    # fuera colaboraciones de las semillas y canciones repetidas entre tops de artistas
-    seen_ids = {t["id"] for t in seed_tracks}
-    cands = [t for t in cands if t["artist_id"] not in seed_ids
-             and not (t["id"] in seen_ids or seen_ids.add(t["id"]))]
-    tracks = seed_tracks + cands
+    graph = crawl_related(crawl_seeds, args.hops, args.related)
+    skip = known_artists | {s["id"] for s in crawl_seeds}
+    pool = [a for a in graph.values() if a["id"] not in skip and a["nb_fan"] >= args.min_fans]
+
+    if args.extend:       # mismo criterio de "no demasiado conocido" que el catálogo actual
+        cap = args.max_fans or max(t["fans"] for t in cat["tracks"] if not t["seed"])
+    else:
+        fans = np.array([a["nb_fan"] for a in pool])
+        cap = args.max_fans or float(np.percentile(fans, 100 * (1 - args.drop_popular)))
+    famous = [a["name"] for a in pool if a["nb_fan"] > cap]
+    print(f"Grafo: {len(graph)} artistas; nuevos candidatos: {len(pool)}; "
+          f"fuera por conocidos (>{int(cap)} fans): {len(famous)}")
+    pool = sorted((a for a in pool if a["nb_fan"] <= cap), key=lambda a: (a["hop"], -a["nb_fan"]))[:args.max_artists]
+
+    new = []
+    if not args.extend:   # primera creación: las semillas y sus canciones son las anclas de gusto
+        cat["seeds"] = [s["name"] for s in named]
+    for s in named:       # gustos declarados nuevos: sus canciones pasan a ser semillas del mazo
+        if s["id"] not in known_artists:
+            cat["seeds"] = list(dict.fromkeys(cat["seeds"] + [s["name"]]))
+            for t in top_tracks(s["id"], 3):
+                if t["id"] not in known_tracks:
+                    new.append({**t, "seed": True, "fans": s["nb_fan"], "hop": 0})
+                    known_tracks.add(t["id"])
+    for a in pool:
+        for t in top_tracks(a["id"], args.tracks):
+            if t["id"] not in known_tracks:
+                new.append({**t, "seed": False, "fans": a["nb_fan"], "hop": a["hop"]})
+                known_tracks.add(t["id"])
     save_api_cache()
-    print(f"{len(pool)} artistas, {len(tracks)} canciones")
+    print(f"{len(pool)} artistas nuevos, {len(new)} canciones candidatas")
 
-    emb, lang = Embedder(), LangDetector()
     ok = []
-    for i, t in enumerate(tracks, 1):
-        print(f"\rAudio {i}/{len(tracks)}", end="", flush=True)
-        try:
-            t["emb"] = emb.audio(t)
-            t["lang_p"] = lang(t)
+    for i, t in enumerate(new, 1):
+        print(f"\rPreviews {i}/{len(new)}", end="", flush=True)
+        if usable_preview(t):
             ok.append(t)
-        except Exception as e:
-            print(f"\n  salto {t['artist']} – {t['title']}: {e}")
-        if i % 25 == 0:
-            emb.save(), lang.save()
-    emb.save(), lang.save()
-    print()
+    print(f"\n{len(ok)} con preview válida")
     assign_languages(ok)
 
-    # centrar (CLAP vive en un cono estrecho) + PCA -> vectores pequeños para el navegador
-    E = np.stack([t["emb"] for t in ok])
-    E = E - E.mean(0)
-    _, _, Vt = np.linalg.svd(E, full_matrices=False)
-    R = E @ Vt[:args.dims].T
-    R /= np.linalg.norm(R, axis=1, keepdims=True) + 1e-8
-
-    deck = {
-        "seeds": [s["name"] for s in seeds],
-        "tracks": [{
-            "id": t["id"], "title": t["title"], "artist": t["artist"], "artist_id": t["artist_id"],
-            "cover": t["cover"], "link": t["link"], "fans": t["nb_fan"], "hop": t["hop"],
-            "novelty": round(1 - t["pop_pct"], 3), "seed": t["seed"],
-            "lang": t["lang"] if t["lang_conf"] >= MIN_CONF else "?", "lang_conf": t["lang_conf"],
-            "lang_src": t["lang_src"],
-            "emb": [round(float(x), 4) for x in r],
-        } for t, r in zip(ok, R)],
-    }
-    (CACHE / "deck.json").write_text(json.dumps(deck, ensure_ascii=False), encoding="utf-8")
+    keep = ("id", "title", "artist", "artist_id", "cover", "link", "fans", "hop", "seed", "lang", "lang_conf", "lang_src")
+    cat["tracks"] += [{k: t[k] for k in keep} for t in ok]
+    save_catalog(cat)
     langs = {}
-    for t in deck["tracks"]:
+    for t in cat["tracks"]:
         langs[t["lang"]] = langs.get(t["lang"], 0) + 1
     print("Idiomas:", dict(sorted(langs.items(), key=lambda x: -x[1])))
-    print(f"Mazo: {CACHE / 'deck.json'} ({len(deck['tracks'])} canciones)")
+    print(f"Catálogo: {len(cat['tracks'])} canciones de {len({t['artist_id'] for t in cat['tracks']})} artistas -> {CATALOG}")
+    print("Siguiente paso: python pipeline.py")
 
 
 if __name__ == "__main__":

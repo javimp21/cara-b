@@ -37,8 +37,13 @@
   //   seedMin    peso mínimo de las semillas
   //   mmr        diversidad dentro de la ronda: resta mmr * (parecido con lo ya servido en la ronda)
   //   exploreP   probabilidad inicial de servir una canción al azar para explorar; decae x exploreDecay por ronda
+  //   artistGap  cuántas tarjetas deben pasar antes de que un artista vuelva (con OTRA canción), según lo que
+  //              opinaste de su última canción: me gusta, no, o me da igual. "Ya la conocía" no cuenta como
+  //              veredicto: conocer una canción no es conocer al artista; vale lo que opinaste de ella.
+  //              Infinity = no vuelve nunca
   function create(deck, opts = {}) {
-    const {likeW = 1.5, seedDecayK = 0, seedMin = 0, mmr = 0, exploreP = 0, exploreDecay = 1} = opts;
+    const {likeW = 1.5, seedDecayK = 0, seedMin = 0, mmr = 0, exploreP = 0, exploreDecay = 1,
+           artistGap = {like: 10, nope: 60, neutral: 30}} = opts;
     const byId = {};
     deck.tracks.forEach(t => byId[t.id] = t);
     const seeds = deck.tracks.filter(t => t.seed);
@@ -75,12 +80,21 @@
     }
 
     function nextTrack(S, {rng = Math.random, control = false} = {}) {
-      // ni artistas ya vistos ni tus semillas (colaboraciones de una semilla aparecen en tops ajenos)
-      const seenArtists = new Set(S.seen.map(id => byId[id]?.artist_id));
-      seeds.forEach(t => seenArtists.add(t.artist_id));
-      S.blocked.forEach(b => seenArtists.add(b.id));
+      // Una canción no se repite nunca. Un artista sí puede volver (con otra canción), pero distanciado:
+      // antes tras un "me gusta", después tras un "me da igual" y mucho más tarde tras un "no". Los bloqueados y tus
+      // semillas no vuelven (colaboraciones de una semilla aparecen en tops ajenos).
+      const verdict = {};
+      S.likes.forEach(l => verdict[l.id] = "like");
+      S.nopes.forEach(n => verdict[n.id] = "nope");
+      S.known.forEach(k => verdict[k.id] = "neutral");
+      const last = {};                  // artista -> posición y veredicto de su última tarjeta
+      S.seen.forEach((id, i) => { const t = byId[id]; if (t) last[t.artist_id] = {i, v: verdict[id] || "neutral"}; });
+      const seenTracks = new Set(S.seen);
+      const never = new Set([...S.blocked.map(b => b.id), ...seeds.map(t => t.artist_id)]);
+      const ready = t => !seenTracks.has(t.id) && !never.has(t.artist_id) &&
+        (!last[t.artist_id] || S.seen.length - last[t.artist_id].i - 1 >= artistGap[last[t.artist_id].v]);
       const w = langWeights(S.prefs);
-      const pool = deck.tracks.filter(t => !t.seed && !seenArtists.has(t.artist_id) &&
+      const pool = deck.tracks.filter(t => !t.seed && ready(t) &&
         (w[t.lang] || (t.lang === "?" && S.prefs.instr)));
       if (!pool.length) return null;
       // elegir idioma para esta carta: el que más "debe" según la mezcla deseada vs. lo ya servido

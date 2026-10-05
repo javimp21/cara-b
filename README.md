@@ -126,41 +126,63 @@ Con el mismo simulador, `sim/sweep.js` prueba variantes del recomendador (40 sim
 - **El modo evaluación ya explora de forma natural:** el 20 % de canciones de control son al azar y también alimentan el aprendizaje.
 - **En la práctica el problema pesa menos de lo que parece**, porque las semillas de un usuario real son los artistas que le gustan. El caso de un gusto que no se parece a nada de lo declarado en el onboarding es el de estrés de la simulación.
 
+### Repetir artistas, con distancia
+
+Antes, un artista dejaba de salir para siempre después de votar una de sus canciones, lo que agota el catálogo muy deprisa. Ahora **una canción no se repite nunca, pero un artista puede volver con otra canción** cuando han pasado suficientes tarjetas, y la espera depende de lo que opinaste de su última canción: tras un «me gusta» vuelve antes (10 tarjetas), tras un «me da igual» a medio plazo (30) y tras un «no» mucho después (60). Que ya conocieras la canción no cambia nada: conocer una canción no es conocer al artista, así que cuenta lo que opinaste de ella. Los artistas bloqueados y las semillas nunca vuelven.
+
+Con el mismo simulador (30 simulaciones por celda, 12 rondas, tasa de «me gusta»):
+
+| Variante | Rock / indie | Media de los cuatro perfiles |
+|---|---|---|
+| sin repetir artistas | 44 % | 40 % |
+| me gusta 10 · no 60 | 51 % | 43 % |
+| pronto: 5 · 30 | 52 % | 43 % |
+| poco: 20 · 100 | 49 % | 42 % |
+| solo repiten los que gustan | 51 % | 43 % |
+
+Repetir a los artistas que gustan es lo que mejora los aciertos (tiene sentido: sus otras canciones se parecen a la que ya te gustó). Repetir a los descartados no aporta nada medible en la simulación (que no incluye votos de «me da igual»), así que esos valores se pueden ajustar sin coste.
+
 ## Uso
 
-Requiere Python 3.10+. La primera ejecución descarga los modelos (CLAP ≈ 800 MB, Whisper ≈ 500 MB, MERT ≈ 400 MB); en CPU, generar un mazo de ~250 canciones tarda más de una hora.
+Requiere Python 3.10+. La primera ejecución descarga los modelos (Whisper ≈ 500 MB, MERT ≈ 400 MB). En CPU, cada canción nueva cuesta unos 5 s (vectores MERT, idioma y características), así que ampliar el catálogo con 1.000 canciones tarda alrededor de hora y media.
 
 ```bash
 python -m venv .venv
 .venv/Scripts/activate          # Linux/Mac: source .venv/bin/activate
 pip install -r requirements.txt
 
-# 1) mazo base: grafo de artistas, previews, idiomas
+# 1) catálogo: grafo de artistas relacionados, previews e idioma de cada canción
 python build_deck.py --seeds "Artista 1, Artista 2, Artista 3"
-# 2) géneros y año (referencias para validar), medidas clásicas de audio y embeddings MERT
-python genres.py
-python features.py
-python mert_embed.py
-# 3) vectores finales + datos para las explicaciones
-python finalize_deck.py
-# 4) espacios por aspecto (voz, estilo, ritmo, producción) y su validación
-python aspects.py
-# 5) color dominante de cada portada (para teñir la pantalla)
-python colors.py
+# 2) todo lo demás: vectores de audio, aspectos, colores y el mazo que lee la app
+python pipeline.py
 
 # probar la app
 python -m http.server 8765 -d cache
 # abrir http://localhost:8765/app.html
 ```
 
-En `cache/` hay ya un mazo generado con `Barry B, Sanguijuelas del Guadiana, Venturi`. Esa carpeta no se sube a git (los datos y las previews, que tienen copyright, se regeneran con el pipeline); solo se versiona `cache/app.html`. `discover.py` es el prototipo inicial en forma de informe HTML y también contiene las funciones de Deezer que usa el resto.
+### Ampliar el catálogo
+
+El proceso es **incremental**: ampliar solo procesa lo nuevo, nunca rehace lo ya calculado.
+
+```bash
+python build_deck.py --extend --hops 3 --max-artists 500   # más artistas parecidos, más lejos en el grafo
+python build_deck.py --extend --votes votos.json           # crecer a partir de lo que te ha gustado
+python build_deck.py --extend --seeds "Cala Vento, Hinds"  # añadir gustos nuevos (pasan a ser semillas)
+python pipeline.py                                         # después de cualquiera de las anteriores
+```
+
+`votos.json` se exporta desde la app con `?dev` (pestaña Evaluación). Las ampliaciones mantienen el mismo listón de «no demasiado conocido» que el catálogo original.
+
+En `cache/` hay ya un mazo generado con `Barry B, Sanguijuelas del Guadiana, Venturi`. Esa carpeta no se sube a git (los datos y las previews, que tienen copyright, se regeneran con el pipeline); solo se versionan la app y sus estilos. `discover.py` es el prototipo inicial en forma de informe HTML y también contiene las funciones de Deezer que usa el resto.
 
 ## Archivos
 
 | Archivo | Para qué |
 |---|---|
 | `discover.py` | Cliente de Deezer con caché, descarga de previews y prototipo inicial con CLAP |
-| `build_deck.py` | Construye el mazo: grafo, filtro de popularidad, idiomas |
+| `build_deck.py` | Crea y amplía el catálogo (incremental): grafo de artistas, filtro de popularidad, previews e idioma |
+| `pipeline.py` | Ejecuta en orden todos los pasos que convierten el catálogo en el mazo de la app |
 | `genres.py` | Géneros y año de Deezer por canción (referencias para validar los aspectos) |
 | `features.py` | BPM, energía, timbre y armonía con librosa |
 | `mert_embed.py` | Embeddings MERT por capas (con hooks, por compatibilidad con transformers 5) |
@@ -173,6 +195,19 @@ En `cache/` hay ya un mazo generado con `Barry B, Sanguijuelas del Guadiana, Ven
 | `cache/app.html` | La app de tarjetas (HTML y JavaScript) |
 | `cache/base.css`, `cache/themes/` | Estilos: base y una hoja por dirección de diseño |
 | `cache/themes.html` | Comparativa de las direcciones de diseño, una al lado de otra |
+
+## De prototipo a producto: el catálogo
+
+**Cuántas canciones hacen falta.** Un usuario que juega a diario consume unas 8 tarjetas al día (5 descubrimientos más las «ya la conocía» y los «no»), unas 3.000 al año. Una canción no se repite nunca, y un artista solo vuelve (con otra canción) tras un tiempo. Además, solo una fracción del catálogo (se estima entre el 10 y el 30 %) encaja con sus idiomas y gustos. Para que no se agote nunca, el catálogo «útil» debería ser 50-100 veces lo que consume: del orden de **100.000-300.000 canciones por idioma principal**. El mazo actual de este prototipo tiene 804 canciones de 489 artistas (con las 3 semillas originales como punto de partida): da para unas semanas de uso, no para un año. Puntuarlo entero en el navegador tarda unos 25 ms por carta; con decenas de miles de canciones hará falta un servidor (estimaciones, no medidas).
+
+**El obstáculo no es técnico, es de derechos.** Deezer, la fuente de este prototipo, indica en sus [normas para desarrolladores](https://developers.deezer.com/guidelines) que *«el almacenamiento local de audio está estrictamente prohibido»* y que el audio no debe poder descargarse. Este proyecto sí guarda las previews en `cache/` para analizarlas y reproducirlas desde local. Eso es razonable para investigación personal (nada se redistribuye ni se sube al repositorio), pero **no se puede convertir en un servicio público tal cual**. La [API de búsqueda de iTunes](https://performance-partners.apple.com/search-api) tampoco lo resolvería: sus previews son solo para promocionar contenido de la tienda, en streaming y sin guardarse. Y Spotify cerró en noviembre de 2024 las recomendaciones, el análisis de audio y las previews a las aplicaciones nuevas.
+
+**Cómo sería un camino realista:**
+
+1. **Un catálogo con derechos.** Hay tres vías, y se pueden combinar: un acuerdo comercial con un proveedor de catálogo o de previews (Deezer, Apple y otros); un catálogo **aportado por los propios artistas**, que suben su música aceptando una licencia (encaja con la idea de monetizar por el lado del artista); y música con licencia abierta como relleno (Jamendo, Free Music Archive). Para escuchar la canción completa, reproductores oficiales incrustados y enlaces, sin alojar audio.
+2. **Analizar el audio una sola vez, sobre material con derechos**, en un servidor con GPU. Solo se guardan los vectores (128 números por canción, unos 0,5 KB): un millón de canciones caben en medio gigabyte. Con MERT en GPU serían del orden de 5-15 horas de GPU en total (estimación; en la CPU de este prototipo serían semanas), y la ingesta de novedades sería nocturna e incremental, como ya lo es este pipeline.
+3. **Un servidor en lugar del navegador.** Hoy la app puntúa todas las canciones en el navegador, algo que aguanta unos pocos miles. Con un catálogo grande haría falta un índice vectorial (pgvector o FAISS) que devuelva los vecinos más cercanos a tu gusto, filtrados por idioma, novedad y artistas ya vistos, y que genere las 5 del día. La app solo pediría y votaría.
+4. **Crecer con cada usuario.** Los «me gusta» de la gente alimentan el grafo y los artistas que gustan traen nuevos parecidos: es lo que hace ya `--extend --votes`, a escala.
 
 ## Pendiente
 

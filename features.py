@@ -1,5 +1,6 @@
-"""Características de audio clásicas (tempo, timbre, energía) para cada preview del mazo."""
-import json, sys
+"""Características de audio clásicas (tempo, timbre, energía) para cada preview del catálogo.
+Incremental: solo calcula las canciones que aún no están en cache/features.npz."""
+import json, os, sys
 from multiprocessing import Pool
 import librosa, numpy as np
 
@@ -33,9 +34,16 @@ def work(a):
     except Exception as e: return tid, None
 
 if __name__ == "__main__":
-    d = json.load(open("cache/deck.json", encoding="utf-8"))
-    jobs = [(str(t["id"]), f"cache/audio/{t['id']}.mp3") for t in d["tracks"]]
+    d = json.load(open("cache/catalog.json", encoding="utf-8"))
     out = {}
+    if os.path.exists("cache/features.npz"):
+        z = np.load("cache/features.npz")
+        out = {str(i): {b: z[b][k] for b in z.files if b != "ids"} for k, i in enumerate(z["ids"])}
+    jobs = [(str(t["id"]), f"cache/audio/{t['id']}.mp3") for t in d["tracks"]
+            if str(t["id"]) not in out and os.path.exists(f"cache/audio/{t['id']}.mp3")]
+    print(f"{len(out)} ya calculadas, {len(jobs)} nuevas")
+    if not jobs:
+        raise SystemExit(0)
     with Pool(6) as p:
         for i, (tid, f) in enumerate(p.imap_unordered(work, jobs), 1):
             if f: out[tid] = f

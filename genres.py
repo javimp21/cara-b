@@ -10,7 +10,7 @@ OUT = Path("cache/genres.json")
 
 
 def main():
-    deck = json.load(open("cache/deck.json", encoding="utf-8"))
+    deck = json.load(open("cache/catalog.json", encoding="utf-8"))
     genres = json.loads(OUT.read_text(encoding="utf-8")) if OUT.exists() else {}
     albums = {}
     for i, t in enumerate(deck["tracks"], 1):
@@ -24,6 +24,8 @@ def main():
             albums[album] = {"genres": [g["name"] for g in a.get("genres", {}).get("data", [])],
                              "year": int(a["release_date"][:4]) if a.get("release_date") else None}
         genres[key] = albums[album]
+        if i % 50 == 0:
+            OUT.write_text(json.dumps(genres, ensure_ascii=False), encoding="utf-8")
     OUT.write_text(json.dumps(genres, ensure_ascii=False), encoding="utf-8")
     print()
     from collections import Counter
