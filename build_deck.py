@@ -114,7 +114,7 @@ def fetch_lyrics_langs(tracks):
             try:
                 r = requests.get("https://lrclib.net/api/search", timeout=10,
                                  params={"artist_name": t["artist"], "track_name": t["title"]},
-                                 headers={"User-Agent": "music-discovery-prototype"}).json()
+                                 headers={"User-Agent": "cara-b-prototype"}).json()
             except (requests.RequestException, ValueError):
                 continue  # sin caché: se reintentará en la próxima ejecución
             r = r if isinstance(r, list) else []

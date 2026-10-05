@@ -42,7 +42,7 @@ header b{font-style:normal;font-size:17px;padding:6px 13px;transform:rotate(-2de
 .badges{display:none}                         /* minimalismo: ni idioma ni fans sobre la portada */
 .info{position:relative;margin:12px;padding:12px 14px 62px;background:var(--label);color:#1d1b17;border:2px solid #1d1b17;border-top:11px solid var(--song);
   border-radius:6px 6px 26px 26px;--fg:#1d1b17;--muted:#5d574b;}
-.info::before{content:"A";position:absolute;right:12px;top:10px;width:24px;height:24px;border-radius:50%;background:#1d1b17;color:var(--label);font:700 14px/24px var(--sans);text-align:center}
+.info::before{content:"B";position:absolute;right:12px;top:10px;width:24px;height:24px;border-radius:50%;background:#1d1b17;color:var(--label);font:700 14px/24px var(--sans);text-align:center}
 .info h3{display:block;-webkit-line-clamp:unset;overflow:hidden;max-height:calc(3 * 32px);padding-right:30px;font-size:17px;line-height:32px;margin:0}
 .info .artist{margin:6px 0 4px;line-height:32px;font-size:15px;letter-spacing:0;font-weight:700;text-transform:none;color:inherit}
 .info .artist .strip{background:var(--song);color:var(--song-ink,#fff);-webkit-text-stroke:0;text-shadow:none;box-shadow:0 1px 0 rgba(255,255,255,.3) inset,0 2px 3px rgba(0,0,0,.3);font-size:14px}

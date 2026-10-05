@@ -1,6 +1,8 @@
-# Music Discovery
+# Cara B
 
-Prototipo de una app de recomendación musical con tarjetas tipo Tinder, pensada para escapar de los artistas de siempre: recomienda música parecida a la que te gusta que no sea la típica que ya conoce todo el mundo, y prioriza los idiomas que tú eliges.
+*Lo que no suena en la cara A.*
+
+Cara B es un prototipo de app de recomendación musical con tarjetas tipo Tinder, pensada para escapar de los artistas de siempre: recomienda música parecida a la que te gusta que no sea la típica que ya conoce todo el mundo, y prioriza los idiomas que tú eliges. El nombre viene de la cara B de los discos, donde estaban las joyas que no se anunciaban.
 
 > Estado: prototipo funcional (mazo estático generado a partir de unos artistas semilla). No es todavía una app con usuarios ni backend.
 
@@ -20,7 +22,7 @@ Prototipo de una app de recomendación musical con tarjetas tipo Tinder, pensada
 
 ## Diseño
 
-Dirección visual **casete**: la portada es el inserto de la caja y debajo va el casete, con una etiqueta de la que cuelgan el título y el artista en **tiras de etiquetadora** (plástico negro con letras en relieve; la del artista toma el color de la canción), una franja del color de cada portada y dos carretes que giran mientras suena. Los botones son teclas de pletina. Sigue el tema claro u oscuro del sistema.
+Dirección visual **casete** (la letra de la esquina de la etiqueta es siempre una **B**): la portada es el inserto de la caja y debajo va el casete, con una etiqueta de la que cuelgan el título y el artista en **tiras de etiquetadora** (plástico negro con letras en relieve; la del artista toma el color de la canción), una franja del color de cada portada y dos carretes que giran mientras suena. Los botones son teclas de pletina. Sigue el tema claro u oscuro del sistema.
 
 - **El punto de partida fue evitar la estética típica de interfaz generada por IA**: nada de degradados morados, de Inter ni de etiquetas en mayúsculas monoespaciadas con letra separada, y la forma de las piezas sale del objeto (casete, etiquetadora) y no de una plantilla. La tipografía sale del objeto: Nunito, de letras redondeadas, que es lo más parecido a las tiras de Dymo reales, elegida entre siete candidatas (grotescas, redondeadas y condensadas) en una comparativa lado a lado, y no de una lista de fuentes de moda. Las tiras se dibujan con CSS: la fuente Dymo más conocida tiene licencia solo para uso personal, así que no se incluye.
 - **Minimalismo deliberado**: sin etiquetas de idioma ni de fans sobre la portada, sin texto de ayuda bajo los botones y con los ajustes secundarios plegados en «Más ajustes». La tarjeta dice solo «Muy parecida a X».
