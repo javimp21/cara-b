@@ -128,11 +128,15 @@ def crawl_related(seeds, hops, per_artist):
 
 
 # ---------------------------------------------------------------- Audio / CLAP
+# Una preview de 30 s pesa ~480 KB: por debajo de esto es una descarga truncada (había una de 15 KB)
+MIN_PREVIEW_BYTES = 100_000
+
+
 def download(track):
     """Descarga la preview. Las URLs firmadas de Deezer caducan a los ~15 min, así que
     si falla se pide una nueva a /track/{id} y se valida que de verdad sea audio."""
     path = AUDIO / f"{track['id']}.mp3"
-    if path.exists() and path.stat().st_size > 10_000:
+    if path.exists() and path.stat().st_size > MIN_PREVIEW_BYTES:
         return path
     for url in (track["preview"], None):
         if url is None:
@@ -143,7 +147,7 @@ def download(track):
             r = requests.get(url, timeout=30)
         except requests.RequestException:
             continue
-        if r.ok and r.headers.get("content-type", "").startswith("audio") and len(r.content) > 10_000:
+        if r.ok and r.headers.get("content-type", "").startswith("audio") and len(r.content) > MIN_PREVIEW_BYTES:
             path.write_bytes(r.content)
             return path
     path.unlink(missing_ok=True)
@@ -168,6 +172,8 @@ class Embedder:
         key = str(track["id"])
         if key not in self.cache:
             y, _ = librosa.load(download(track), sr=SR, mono=True)
+            if len(y) < 20 * SR:   # Deezer sirve a veces previews de ~1 s: no sirven para votar
+                raise RuntimeError(f"preview demasiado corta ({len(y) / SR:.1f} s)")
             # 3 ventanas de 10 s -> media: más robusto que un solo fragmento
             chunks = [y[i:i + 10 * SR] for i in range(0, max(len(y) - 5 * SR, 1), 10 * SR)]
             chunks = [c for c in chunks if len(c) > 5 * SR] or [y]

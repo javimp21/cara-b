@@ -1,0 +1,84 @@
+/* CAJA DE DISCOS — rebuscar entre vinilos en una tienda. Cada canción es una carátula de cartón
+   con el disco asomando y una pegatina de precio. Siempre sobre madera oscura (no sigue el tema claro). */
+:root{
+  --serif:"Alfa Slab One","Rockwell",Georgia,serif;
+  --sans:"Courier Prime","Courier New",monospace;
+  --hand:"Caveat","Segoe Script",cursive;
+  --bg:#271b11;--surface:#e9ddc2;--surface2:#d9caa6;--fg:#f1e5cc;--muted:#bfae8c;--line:#4a3623;
+  --acc:#f2b632;--acc-fg:#2b1d12;--nope:#d9553c;
+  --shadow:0 18px 40px rgba(0,0,0,.55);--tint:#271b11;--tint-strength:0%;
+  --ink:#2b1d12;--ink-muted:#6c563a;
+}
+body{background:repeating-linear-gradient(90deg,rgba(0,0,0,.14) 0 2px,transparent 2px 11px),
+  repeating-linear-gradient(90deg,rgba(255,255,255,.025) 0 1px,transparent 1px 23px),linear-gradient(180deg,#34241a,#1f150d);font-size:14px}
+header b{font-style:normal;font-weight:400;font-size:24px;letter-spacing:.01em;color:var(--acc)}
+.dots i{height:5px;width:16px;border-radius:3px;background:#4a3623}
+.dots i.fill{background:var(--acc)}
+.iconbtn{font-family:var(--sans);letter-spacing:.08em}
+
+/* pestañas: separadores de cajón */
+.tabs{border-bottom:0;gap:5px;margin-bottom:12px}
+.tabs button{background:#d9caa6;color:var(--ink);padding:7px 14px 6px;border-radius:7px 7px 0 0;font-family:var(--sans);font-weight:700;font-size:12px;letter-spacing:.04em;text-transform:uppercase;opacity:.72;transform:translateY(3px)}
+.tabs button.on{opacity:1;background:var(--acc);transform:none}
+.tabs button.on::after{display:none}
+.tabs .n{background:var(--ink);color:var(--acc)}
+
+/* tarjeta: carátula con el disco asomando */
+.stack{margin-top:64px}
+.card{overflow:visible;background:transparent;border:0;box-shadow:none;border-radius:0}
+.d3{display:block;position:absolute;inset:0;z-index:-1;background:
+    radial-gradient(circle at 50% 36%,transparent 0 47%,rgba(80,55,25,.10) 47.5% 48.5%,transparent 49%),
+    linear-gradient(135deg,rgba(255,255,255,.35),transparent 40%),var(--surface);
+  border-radius:3px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.5),inset 0 0 38px rgba(120,90,50,.38),var(--shadow);pointer-events:none}
+.d1{display:block;position:absolute;z-index:-2;left:50%;top:-72px;width:236px;height:236px;margin-left:-118px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,#111 0 3%,var(--song) 3.4% 19%,#111 19.4% 21%,transparent 21.4%),
+  repeating-radial-gradient(circle,#171717 0 2px,#0d0d0d 3px 4px);box-shadow:0 4px 18px rgba(0,0,0,.5)}
+.card:not(.paused) .d1{animation:spin 3.2s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.d2{display:block;position:absolute;z-index:7;right:-12px;top:26px;width:76px;height:76px;border-radius:50%;background:#ffd23f;color:#2b1d12;
+  box-shadow:0 2px 6px rgba(0,0,0,.4),inset 0 0 0 3px rgba(255,255,255,.35);transform:rotate(12deg);display:grid;place-items:center;text-align:center;
+  font:700 15px/1 var(--hand);pointer-events:none}
+.d2::before{content:attr(data-fans);padding:0 8px;font-size:17px;line-height:1.05}
+.cover{flex:none;aspect-ratio:1/1;margin:14px 14px 0;border:1px solid rgba(0,0,0,.35);box-shadow:0 2px 8px rgba(0,0,0,.35);background-color:#222}
+.cover::after{background:linear-gradient(180deg,rgba(0,0,0,.18),transparent 22%)}
+.badges{top:22px}
+.badge{background:rgba(233,221,194,.92);color:var(--ink);border:0;backdrop-filter:none;border-radius:3px;font-family:var(--sans);font-weight:700}
+.info{margin-top:0;padding:14px 20px 16px;color:var(--ink);flex:1;display:flex;flex-direction:column;justify-content:center;--fg:var(--ink);--muted:var(--ink-muted)}
+.info h3{font-size:25px;line-height:1.1;letter-spacing:0;color:var(--ink);-webkit-line-clamp:2}
+.info .artist{font-family:var(--sans);font-weight:700;font-size:12.5px;letter-spacing:.14em;color:var(--ink);margin:6px 0 8px;border-top:1.5px solid var(--ink);padding-top:7px;display:inline-block}
+.why{font-size:12.5px;color:var(--ink-muted)}
+.why b{color:var(--ink)}
+.progress{top:10px;background:rgba(255,255,255,.4)}
+.progress i{background:var(--acc)}
+.stamp{font-family:var(--hand);font-style:normal;font-weight:700;font-size:34px;border-width:3px;border-radius:10px}
+.stamp.like{color:#ffd54f;border-color:#ffd54f}
+
+/* botones: etiquetas de vinilo */
+.actions{gap:20px}
+.act{background:#16110c;border:2px solid #4a3623;box-shadow:0 6px 16px rgba(0,0,0,.45)}
+.act.nope svg{stroke:#e8856f}
+.act.like{background:radial-gradient(circle,#16110c 0 8%,var(--acc) 9% 100%);border:3px solid #16110c;box-shadow:0 0 0 3px var(--acc),0 8px 20px rgba(0,0,0,.5)}
+.act.like svg{fill:#2b1d12}
+.act.know{background:transparent;border:0;box-shadow:none;font-family:var(--sans);color:var(--muted)}
+
+/* hojas y listas: cartón sobre madera */
+.sheet{background:var(--surface);--fg:var(--ink);--muted:var(--ink-muted);--line:#c3b28c;color:var(--ink);border:0;border-radius:6px 6px 0 0}
+.sheet h4{font-weight:400;font-size:25px;letter-spacing:0}
+.chip{border-color:#b9a47a;color:var(--ink);background:transparent;border-radius:4px}
+.chip.on{background:var(--ink);color:var(--surface)}
+.row button.go,.primary{background:var(--acc);color:var(--acc-fg);border-radius:4px;font-family:var(--sans);font-weight:700;text-transform:uppercase;letter-spacing:.06em;box-shadow:0 5px 0 #8a6616}
+.links a{background:#f3ead4;border-radius:4px;border-color:#c3b28c}
+.undo{border-radius:4px}
+.blockbtn{border-radius:4px}
+.onb h1,.evh,.done h1{font-weight:400;letter-spacing:0;color:var(--fg)}
+.chip{border-color:#6b5237;color:var(--fg)}
+.chip.on{background:var(--acc);color:var(--acc-fg);border-color:transparent}
+.sheet .chip{border-color:#b9a47a;color:var(--ink)}
+.sheet .chip.on{background:var(--ink);color:var(--surface)}
+.stat,.note,.stats{background:#34261a;border-color:#4a3623;border-radius:6px}
+.day{font-family:var(--hand);font-style:normal;font-size:24px;color:var(--acc)}
+.entry,.liked a{border-bottom:1px dashed #4a3623}
+.item img,.liked img{border-radius:2px;box-shadow:0 3px 8px rgba(0,0,0,.5)}
+.item .txt b,.liked b{font-weight:400}
+.bignum{font-weight:400;color:var(--acc)}
+.rbar .bar{background:#4a3623}

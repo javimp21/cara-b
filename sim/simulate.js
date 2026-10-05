@@ -40,7 +40,7 @@ const strategies = RR => ({
   modelo: (S, r) => RR.nextTrack(S, {rng: r}),
   "modelo (sin dar motivos)": (S, r) => RR.nextTrack(S, {rng: r}),
   // mismo sistema pero sin aprender de los votos (solo el gusto de partida): línea base "sin aprendizaje"
-  "sin aprender": (S, r) => RR.nextTrack({...S, likes: [], nopes: [], novelty: .15, langMult: {}}, {rng: r}),
+  "sin aprender": (S, r) => RR.nextTrack({...S, likes: [], nopes: [], novelty: .15}, {rng: r}),
   // al azar dentro del idioma: línea base mínima
   azar: (S, r) => RR.nextTrack(S, {rng: r, control: true}),
 });

@@ -4,151 +4,33 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Descubre</title>
-<style>
-:root{
-  --bg:#f4f2ee;--surface:#ffffff;--fg:#17161a;--muted:#6d6a73;--line:#e2dfd8;
-  --like:#1f9d6b;--nope:#d9483b;--acc:#5b4cf0;--chip:#efedf7;--chip-on:#5b4cf0;--chip-on-fg:#fff;
-  --shadow:0 10px 30px rgba(20,18,30,.12);
-}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
-  --bg:#111014;--surface:#1c1b21;--fg:#f0eef5;--muted:#9c98a6;--line:#2c2a33;
-  --like:#35c48c;--nope:#f0675a;--acc:#8b7fff;--chip:#26242d;--chip-on:#8b7fff;--chip-on-fg:#111014;
-  --shadow:0 10px 30px rgba(0,0,0,.45);
-}}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{height:100%}
-body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;overflow:hidden}
-button{font:inherit;color:inherit;cursor:pointer}
-.app{max-width:440px;height:100%;margin:auto;display:flex;flex-direction:column;padding:12px 16px calc(16px + env(safe-area-inset-bottom))}
-header{display:flex;align-items:center;justify-content:space-between;height:40px}
-header b{font-size:18px;letter-spacing:-.02em}
-.dots{display:flex;gap:6px}.dots i{width:22px;height:5px;border-radius:3px;background:var(--line)}
-.dots i.done{background:var(--acc)}
-.iconbtn{border:0;background:none;color:var(--muted);font-size:13px;padding:6px}
-.screen{flex:1;display:none;flex-direction:column;min-height:0}
-.screen.on{display:flex}
+<meta name="theme-color" content="#0e0d0c">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<script>
+// Tema visual: ?theme=nombre (o el último elegido). Se carga encima de base.css.
+var THEMES = ["editorial", "fanzine", "crate", "riso", "tape"], THEME = "tape";
+var PARAMS = new URLSearchParams(location.search), DEMO = PARAMS.has("demo"), DEV = PARAMS.has("dev");
+try { THEME = PARAMS.get("theme") || localStorage.getItem("theme") || "tape"; } catch (e) {}
+if (THEMES.indexOf(THEME) < 0) THEME = "tape";
+document.documentElement.dataset.theme = THEME;
+if (DEMO) document.documentElement.classList.add("demo");
+if (DEV) document.documentElement.classList.add("dev");
+// Cada tema carga solo sus tipografías (Google Fonts)
+var FONTS = {
+  tape: "family=Nunito:wght@400;600;700;800;900",
+  editorial: "family=Fraunces:ital,opsz,wght@0,9..144,500..700;1,9..144,400..600&family=Inter:wght@400;500;600",
+  fanzine: "family=Special+Elite&family=Anton&family=Permanent+Marker",
+  crate: "family=Alfa+Slab+One&family=Courier+Prime:wght@400;700&family=Caveat:wght@500;700",
+  riso: "family=Archivo+Black&family=Archivo:wght@400;500;700"
+};
+document.write('<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>' +
+  '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?' + FONTS[THEME] + '&display=swap">');
+var V = Date.now();   // evita que el navegador sirva estilos antiguos mientras se desarrolla
+document.write('<link rel="stylesheet" href="base.css?v=' + V + '">');
+if (THEME !== "editorial") document.write('<link rel="stylesheet" href="themes/' + THEME + '.css?v=' + V + '">');
+</script>
 
-/* ---------- pestañas y lista de descubiertas ---------- */
-.tabs{display:flex;gap:4px;background:var(--chip);border-radius:12px;padding:3px;margin:4px 0 6px}
-.tabs[hidden]{display:none}
-.tabs button{flex:1;border:0;background:none;border-radius:9px;padding:7px 4px;font-size:13px;font-weight:600;color:var(--muted)}
-.tabs button.on{background:var(--surface);color:var(--fg);box-shadow:0 1px 4px rgba(0,0,0,.12)}
-.tabs .n{margin-left:4px;font-size:12px;background:var(--acc);color:#fff;border-radius:999px;padding:1px 7px}
-.tabs .n:empty{display:none}
-.list{overflow-y:auto;padding:4px 0 12px}
-.list>*{flex-shrink:0}
-.day{margin:16px 2px 6px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
-.entry{background:var(--surface);border-radius:14px;margin-bottom:8px;overflow:hidden}
-.item{width:100%;display:flex;align-items:center;gap:12px;border:0;background:none;padding:10px 12px;text-align:left}
-.item img{width:48px;height:48px;border-radius:8px;object-fit:cover;flex:none}
-.item .txt{flex:1;min-width:0;display:flex;flex-direction:column}
-.item .txt b,.item .txt small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.item .txt small{color:var(--muted);font-size:13px}
-.item .chev{color:var(--muted);transition:transform .2s}
-.item.open .chev{transform:rotate(180deg)}
-.panel{padding:2px 12px 12px}
-.panel .links{margin-bottom:8px}
-.panel .dz{font-size:13px;color:var(--acc)}
-
-/* ---------- evaluación ---------- */
-.evh{margin:10px 0 2px;font-size:20px}
-.evp{margin:0 0 12px;color:var(--muted);font-size:13px}
-.evgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.stat{background:var(--surface);border-radius:14px;padding:12px}
-.statv{font-size:28px;font-weight:700;letter-spacing:-.02em}
-.statl{font-size:12px;color:var(--muted)}
-.statn{font-size:11px;color:var(--muted);margin-top:4px}
-.evsec{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:18px 2px 6px}
-.rbar{display:grid;grid-template-columns:62px 1fr 78px;gap:8px;align-items:center;font-size:13px;margin:5px 0}
-.rbar .bar{height:10px;border-radius:5px;background:var(--line);overflow:hidden}
-.rbar .bar i{display:block;height:100%;background:var(--acc)}
-.rbar span:last-child{color:var(--muted);text-align:right;font-size:12px}
-.note{background:var(--surface);border-radius:12px;padding:10px 12px;font-size:13px;color:var(--muted);margin-top:10px;line-height:1.5}
-.note b{color:var(--fg)}
-
-/* ---------- onboarding ---------- */
-.onb{overflow-y:auto;padding-bottom:12px}
-.onb>*,.done>*{flex-shrink:0}
-.onb h1{font-size:26px;line-height:1.15;margin:18px 0 6px;letter-spacing:-.02em}
-.onb h2{font-size:15px;margin:22px 0 8px}
-.onb p{color:var(--muted);margin:0 0 6px}
-.chips{display:flex;flex-wrap:wrap;gap:8px}
-.chip{border:1px solid var(--line);background:var(--chip);border-radius:999px;padding:7px 13px;font-size:14px;display:inline-flex;align-items:center;gap:6px}
-.chip.on{background:var(--chip-on);color:var(--chip-on-fg);border-color:transparent}
-.chip .n{font-size:11px;font-weight:700;background:rgba(255,255,255,.25);border-radius:999px;min-width:18px;height:18px;display:inline-grid;place-items:center}
-.chip:disabled{opacity:.4;cursor:default}
-.range{display:flex;align-items:center;gap:12px}.range input{flex:1;accent-color:var(--acc)}
-.range output{font-weight:700;min-width:44px;text-align:right}
-.mixbar{display:flex;height:10px;border-radius:5px;overflow:hidden;margin-top:10px;background:var(--line)}
-.mixbar span{height:100%}
-.mixlegend{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px;font-size:12px;color:var(--muted)}
-.mixlegend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px}
-.primary{width:100%;border:0;border-radius:14px;background:var(--acc);color:#fff;padding:14px;font-weight:650;font-size:16px;margin-top:22px}
-.primary:disabled{opacity:.45}
-.seedline{font-size:13px;color:var(--muted);margin-top:10px}
-
-/* ---------- deck ---------- */
-.stack{position:relative;flex:1;min-height:0;margin:8px 0 14px}
-.card{position:absolute;inset:0;background:var(--surface);border-radius:22px;box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column;touch-action:none;user-select:none;will-change:transform}
-.card.next{transform:scale(.95) translateY(10px);opacity:.6}
-.cover{position:relative;flex:1;min-height:0;background:#000 center/cover no-repeat}
-.cover::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgba(0,0,0,.7))}
-.playstate{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:64px;height:64px;border-radius:50%;background:rgba(0,0,0,.45);display:grid;place-items:center;opacity:0;transition:opacity .2s;z-index:2}
-.paused .playstate{opacity:1}
-.playstate svg{width:26px;height:26px;fill:#fff}
-.badges{position:absolute;left:12px;top:12px;display:flex;gap:6px;z-index:2}
-.badge{background:rgba(0,0,0,.55);color:#fff;font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px;backdrop-filter:blur(6px)}
-.stamp{position:absolute;top:26px;z-index:3;font-weight:800;font-size:26px;letter-spacing:.04em;padding:4px 12px;border:4px solid;border-radius:10px;opacity:0;transform:rotate(-12deg)}
-.stamp.like{left:22px;color:var(--like);border-color:var(--like)}
-.stamp.know{left:50%;top:22px;color:#fff;border-color:#fff;font-size:20px;transform:translateX(-50%) rotate(-4deg);text-shadow:0 1px 6px rgba(0,0,0,.5)}
-.stamp.nope{right:22px;color:var(--nope);border-color:var(--nope);transform:rotate(12deg)}
-.progress{height:4px;background:rgba(255,255,255,.25);position:absolute;left:0;right:0;bottom:0;z-index:2}
-.progress i{display:block;height:100%;width:0;background:#fff}
-.info{padding:14px 16px 16px}
-.info h3{margin:0;font-size:20px;line-height:1.2;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.info .artist{margin:2px 0 8px;font-size:16px}
-.why{font-size:13px;color:var(--muted)}
-.why b{color:var(--fg);font-weight:600}
-.why span{display:inline-block;margin-top:2px;font-size:12px}
-.actions{display:flex;justify-content:center;align-items:center;gap:20px}
-.act{width:66px;height:66px;border-radius:50%;border:0;background:var(--surface);box-shadow:var(--shadow);display:grid;place-items:center}
-.act svg{width:30px;height:30px}
-.act.nope svg{stroke:var(--nope)}.act.like svg{fill:var(--like)}
-.act.know{width:58px;height:58px;align-self:center;font-size:11px;font-weight:700;line-height:1.15;color:var(--muted)}
-.act:active{transform:scale(.94)}
-.hint{text-align:center;font-size:12px;color:var(--muted);margin-top:8px}
-
-/* ---------- sheet ---------- */
-.scrim{position:fixed;inset:0;background:rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .2s;z-index:10}
-.scrim.on{opacity:1;pointer-events:auto}
-.sheet{position:fixed;left:50%;bottom:0;width:min(440px,100%);transform:translate(-50%,105%);background:var(--surface);border-radius:22px 22px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));z-index:11;transition:transform .25s cubic-bezier(.2,.8,.2,1)}
-.sheet.on{transform:translate(-50%,0)}
-.sheet h4{margin:0 0 2px;font-size:18px}
-.sheethead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
-.blockbtn{width:100%;margin-top:14px;border:1px dashed var(--line);background:none;border-radius:12px;padding:11px 12px;font-size:14px;font-weight:600;text-align:left;color:var(--muted)}
-.blockbtn.on{border-style:solid;border-color:var(--nope);color:var(--nope);background:color-mix(in srgb,var(--nope) 10%,transparent)}
-.undo{border:1px solid var(--line);background:none;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;white-space:nowrap}
-.sheet .sub{color:var(--muted);font-size:13px;margin:0 0 14px}
-.links{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
-.links a{display:flex;align-items:center;gap:8px;padding:11px 12px;border:1px solid var(--line);border-radius:12px;color:var(--fg);text-decoration:none;font-weight:600;font-size:14px}
-.links a i{width:10px;height:10px;border-radius:50%}
-.sheet .label{font-size:13px;font-weight:600;margin:0 0 8px}
-.row{display:flex;gap:8px;margin-top:16px}
-.row button{flex:1;border-radius:12px;padding:12px;border:1px solid var(--line);background:none;font-weight:600}
-.row.verdict{margin-top:6px}.row.verdict button{padding:14px 6px;font-size:14px}
-.row button.go{background:var(--acc);color:#fff;border-color:transparent}
-
-/* ---------- done ---------- */
-.done{overflow-y:auto;text-align:center;padding-top:20px}
-.done h1{font-size:24px;margin:10px 0 4px}
-.done p{color:var(--muted);margin:0 0 18px}
-.liked{text-align:left;display:flex;flex-direction:column;gap:8px}
-.liked a{display:flex;gap:12px;align-items:center;padding:8px;border-radius:12px;background:var(--surface);color:var(--fg);text-decoration:none}
-.liked img{width:48px;height:48px;border-radius:8px;object-fit:cover}
-.liked small{display:block;color:var(--muted)}
-.stats{font-size:12px;color:var(--muted);margin-top:18px;text-align:left;background:var(--surface);border-radius:12px;padding:12px;line-height:1.6}
-.empty{margin:auto;text-align:center;color:var(--muted)}
-</style>
 </head>
 <body>
 <div class="app">
@@ -161,7 +43,7 @@ header b{font-size:18px;letter-spacing:-.02em}
   <nav class="tabs" id="tabs" hidden>
     <button id="tabDeck" class="on">Descubrir</button>
     <button id="tabList">Descubiertas<span class="n" id="tabCount"></span></button>
-    <button id="tabEval">Evaluación</button>
+    <button id="tabEval" class="dev-only">Evaluación</button>
   </nav>
 
   <!-- Onboarding: idiomas -->
@@ -176,11 +58,14 @@ header b{font-size:18px;letter-spacing:-.02em}
     <div class="range"><input type="range" id="mix" min="50" max="100" step="5" value="80"><output id="mixOut">80%</output></div>
     <div class="mixbar" id="mixbar"></div>
     <div class="mixlegend" id="mixlegend"></div>
-    <h2>Instrumentales o idioma dudoso</h2>
-    <div class="chips"><button class="chip on" id="instrChip">Incluir de vez en cuando</button></div>
-    <h2>Modo evaluación</h2>
-    <p>Para medir si el sistema acierta más que el azar, 1 de cada 5 canciones se elige al azar. Puedes desactivarlo.</p>
-    <div class="chips"><button class="chip on" id="evalChip">Activado</button></div>
+    <details class="more">
+      <summary>Más ajustes</summary>
+      <h2>Instrumentales o idioma dudoso</h2>
+      <div class="chips"><button class="chip on" id="instrChip">Incluir de vez en cuando</button></div>
+      <h2 class="dev-only">Modo evaluación</h2>
+      <p class="dev-only">Para medir si el sistema acierta más que el azar, 1 de cada 5 canciones se elige al azar. Puedes desactivarlo.</p>
+      <div class="chips dev-only"><button class="chip on" id="evalChip">Activado</button></div>
+    </details>
     <button class="primary" id="startBtn">Empezar</button>
     <div class="seedline" id="seedline"></div>
   </section>
@@ -193,7 +78,7 @@ header b{font-size:18px;letter-spacing:-.02em}
       <button class="act know" id="knowBtn" aria-label="Ya lo conozco" title="Ya lo conozco (↑)">Ya lo<br>conozco</button>
       <button class="act like" id="likeBtn" aria-label="Me gusta"><svg viewBox="0 0 24 24"><path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.1 0 3.6 1.2 4.3 2.6h2c.7-1.4 2.2-2.6 4.3-2.6 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21z"/></svg></button>
     </div>
-    <div class="hint">Desliza o usa ← → ↑  ·  ↑ = ya lo conozco  ·  toca la portada para pausar</div>
+    <div class="hint">Desliza o usa ← → ↑ · arriba: ya lo conozco · toca la portada para pausar</div>
   </section>
 
   <!-- Canciones descubiertas -->
@@ -217,16 +102,16 @@ const PICKABLE = ["es","en","pt","fr","it","ca","gl","eu","de","ja","ko"];
 const LANG_COLORS = ["var(--acc)","#e3a33b","#2fa7b8","#d4589a","#7aa83a"];
 const {PER_DAY, CONTROL_P} = Recommender;
 const NOPE_REASONS = [
-  ["lang","El idioma"],["voice","La voz"],["rhythm","El ritmo"],["style","El estilo / género"],
-  ["prod","La producción"],["hook","No me engancha"],["famous","Demasiado conocido"]];
-const LIKE_REASONS = [["voice","La voz"],["lyrics","La letra"],["rhythm","El ritmo"],
+  ["voice","La voz"],["rhythm","El ritmo"],["style","El estilo / género"],
+  ["prod","La producción"],["famous","Demasiado conocido"]];
+const LIKE_REASONS = [["voice","La voz"],["rhythm","El ritmo"],["style","El estilo / género"],
   ["instr","Guitarras / instrumentos"],["prod","La producción"]];
 // ------------------------------------------------------------------ estado (localStorage, opcional)
 const KEY = "descubre-v1";
 const fresh = Recommender.fresh;
 let S = fresh();
-try { const raw = localStorage.getItem(KEY); if (raw) S = {...fresh(), ...JSON.parse(raw)}; } catch {}
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
+if (!DEMO) try { const raw = localStorage.getItem(KEY); if (raw) S = {...fresh(), ...JSON.parse(raw)}; } catch {}   // la demo parte siempre limpia
+const save = () => { if (DEMO) return; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch {} };
 const todayStr = Recommender.localDate;
 if (S.day !== todayStr()) { S.day = todayStr(); S.today = []; }
 
@@ -267,11 +152,16 @@ function renderOnb() {
 $("mix").oninput = e => { draft.mix = +e.target.value; renderOnb(); };
 $("instrChip").onclick = () => { draft.instr = !draft.instr; renderOnb(); };
 $("evalChip").onclick = () => { draft.eval = draft.eval === false; renderOnb(); };
-$("startBtn").onclick = () => { S.prefs = {...draft}; S.langMult = {}; save(); show("deckScreen"); deal(); };
+$("startBtn").onclick = () => { S.prefs = {...draft}; save(); show("deckScreen"); deal(); };
 $("settingsBtn").onclick = () => { if (S.prefs) draft = {...S.prefs, extras:[...S.prefs.extras]}; stopAudio(); renderOnb(); show("onb"); };
 
 // ------------------------------------------------------------------ pantallas
+// El color de la portada de la canción tiñe el fondo (transición suave gracias a @property --tint)
+const setTint = c => c ? document.documentElement.style.setProperty("--tint", c)
+                       : document.documentElement.style.removeProperty("--tint");
+
 function show(id) {
+  setTint(id === "deckScreen" && current ? current.t.color : null);
   for (const s of document.querySelectorAll(".screen")) s.classList.toggle("on", s.id === id);
   $("tabs").hidden = !S.prefs || id === "onb";
   $("tabDeck").classList.toggle("on", id !== "listScreen" && id !== "evalScreen");
@@ -376,7 +266,7 @@ $("tabEval").onclick = () => goTab("eval");
 function renderDots() {
   const d = $("dots"); d.innerHTML = "";
   if (!S.prefs) return;
-  for (let i=0;i<PER_DAY;i++) d.append(el("i",{className: i < S.today.length ? "done" : ""}));
+  for (let i=0;i<PER_DAY;i++) d.append(el("i",{className: i < S.today.length ? "fill" : ""}));
 }
 
 // ------------------------------------------------------------------ cartas
@@ -394,24 +284,14 @@ function simPercentile(v) {
   let lo = 0; while (lo < SIMDIST.length && SIMDIST[lo] <= v) lo++;
   return lo / SIMDIST.length;
 }
-// En qué se parecen, SOLO con medidas reales del audio (no etiquetas inventadas por un modelo)
-function sharedTraits(a, b) {
-  const out = [];
-  const r = a.bpm / b.bpm;
-  const octave = [1, 2, .5].some(k => Math.abs(r / k - 1) < .08);
-  if (octave) out.push([Math.abs(r - 1), `tempo parecido (~${a.bpm} BPM)`]);
-  [["energy","energía parecida"],["bright","timbre / brillo parecido"],["pulse","pegada rítmica parecida"]]
-    .forEach(([k, txt]) => { const d = Math.abs(a[k] - b[k]); if (d < .15) out.push([d, txt]); });
-  return out.sort((x, y) => x[0] - y[0]).slice(0, 2).map(x => x[1]);
-}
 function whyHtml(t, near) {
-  const p = simPercentile(dot(t.emb, near.emb)), traits = sharedTraits(t, near);
+  const p = simPercentile(dot(t.emb, near.emb));
   const ref = `<b>${esc(near.artist)} – ${esc(near.title)}</b>`;
   let main;
   if (p >= .75) main = `${near.seed ? "Muy parecida a" : "Muy parecida a la que te gustó:"} ${ref}`;
   else if (p >= .5) main = `${near.seed ? "Parecida a" : "Parecida a la que te gustó:"} ${ref}`;
   else main = "Para ampliar tu gusto · se aleja un poco de lo que ya has escuchado";
-  return main + (p >= .5 && traits.length ? `<br><span>${traits.join(" · ")}</span>` : "");
+  return main;
 }
 const esc = x => String(x).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
@@ -422,26 +302,55 @@ function cardEl(rec) {
   const c = el("div",{className:"card"},
     el("div",{className:"cover", style:`background-image:url("${t.cover.replace("250x250","500x500")}")`},
       el("div",{className:"badges"}, el("span",{className:"badge",textContent:langTxt}), el("span",{className:"badge",textContent:fans+" fans"})),
-      el("div",{className:"stamp like",textContent:"ME GUSTA"}), el("div",{className:"stamp nope",textContent:"NO"}), el("div",{className:"stamp know",textContent:"YA LO CONOZCO"}),
+      el("div",{className:"stamp like",textContent:"Me gusta"}), el("div",{className:"stamp nope",textContent:"No"}), el("div",{className:"stamp know",textContent:"Ya lo conozco"}),
       el("div",{className:"playstate",innerHTML:'<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>'}),
       el("div",{className:"progress"}, el("i"))),
     el("div",{className:"info"},
       el("h3",{textContent:t.title}), el("div",{className:"artist",textContent:t.artist}),
-      el("div",{className:"why", innerHTML: whyHtml(t, near)})));
+      el("div",{className:"why", innerHTML: whyHtml(t, near)})),
+    el("i",{className:"d d1"}), el("i",{className:"d d2"}), el("i",{className:"d d3"}));
+  c.style.setProperty("--song", t.color || "#6b6258");
+  c.style.setProperty("--song-ink", luminance(t.color || "#6b6258") > .5 ? "#141414" : "#ffffff");
+  Object.assign(c.dataset, {title: t.title, artist: t.artist, fans: fans + " fans", lang: langTxt, bpm: (t.bpm || "") + ""});
+  c.querySelectorAll(".d").forEach(d => Object.assign(d.dataset, c.dataset));
+  if (THEME === "fanzine") ransom(c.querySelector("h3"));
+  if (THEME === "tape") for (const [q, txt] of [["h3", t.title], [".artist", t.artist]]) {   // tiras de etiquetadora
+    const n = c.querySelector(q); n.textContent = ""; n.append(el("span", {className: "strip", textContent: txt}));
+  }
   return c;
+}
+
+// Luminancia relativa (0-1) de un color #rrggbb, para elegir tinta clara u oscura encima
+function luminance(hex) {
+  const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map(v => v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4);
+  return .2126 * r + .7152 * g + .0722 * b;
+}
+
+// Fanzine: letras recortadas de revistas, cada una con su fondo y su giro (determinista por título)
+function ransom(node) {
+  const text = node.textContent; node.textContent = ""; node.setAttribute("aria-label", text);
+  let i = 0;
+  text.split(" ").forEach((word, wi, words) => {
+    const w = el("span", {className: "w", ariaHidden: "true"});     // cada palabra no se parte entre líneas
+    [...word].forEach(ch => w.append(el("span", {className: "r r" + ((ch.charCodeAt(0) + (i++) * 7) % 5), textContent: ch})));
+    node.append(w);
+    if (wi < words.length - 1) node.append(" ");
+  });
 }
 
 function deal() {
   renderDots();
   if (S.today.length >= PER_DAY) return finishDay();
-  const control = S.prefs.eval !== false && Math.random() < CONTROL_P;   // modo evaluación: 1 de cada 5 al azar
-  const rec = R.nextTrack(S, {control});
+  const control = DEV && S.prefs.eval !== false && Math.random() < CONTROL_P;   // solo en ?dev: 1 de cada 5 al azar
+  let rec = R.nextTrack(S, {control});
+  if (DEMO && PARAMS.get("t") && byId[PARAMS.get("t")]) rec = {...R.score(S, byId[PARAMS.get("t")]), t: byId[PARAMS.get("t")], arm: "model", scoreSeed: 0};
   if (!rec) { $("stack").innerHTML = ""; $("stack").append(el("div",{className:"empty",textContent:"No quedan canciones en el mazo para tus idiomas. Prueba a añadir otro idioma."})); return; }
-  current = rec;
+  current = rec; setTint(rec.t.color);
   const stack = $("stack"); stack.innerHTML = "";
   const card = cardEl(rec); stack.append(card);
   audio.src = `audio/${rec.t.id}.mp3`;
-  audio.play().catch(() => card.classList.add("paused"));
+  if (!DEMO) audio.play().catch(() => card.classList.add("paused"));
   bindDrag(card);
 }
 
@@ -503,9 +412,9 @@ function onKnown() {
     el("div",{className:"sheethead"}, el("h4",{textContent:"Ya la conocías"}), undoBtn()),
     el("p",{className:"sub",textContent:`${t.artist} – ${t.title}. ¿Y qué te parece? Así sé si es de lo tuyo.`}),
     el("div",{className:"row verdict"},
-      el("button",{textContent:"👍 Me gusta",onclick:() => finish("like")}),
-      el("button",{textContent:"😐 Me da igual",onclick:() => finish("neutral")}),
-      el("button",{textContent:"👎 No me gusta",onclick:() => finish("nope")})));
+      el("button",{textContent:"✕  No me gusta",onclick:() => finish("nope")}),      // misma disposición que en la tarjeta:
+      el("button",{textContent:"–  Me da igual",onclick:() => finish("neutral")}),   // no a la izquierda,
+      el("button",{textContent:"♥  Me gusta",onclick:() => finish("like")})));       // sí a la derecha
 }
 $("knowBtn").onclick = () => flingKnown(document.querySelector(".card"));
 $("likeBtn").onclick = () => fling(document.querySelector(".card"), 1);
@@ -566,8 +475,8 @@ function onNope() {
   let block = false;
   const blockBtn = el("button", {className:"blockbtn", onclick(){
     block = !block; this.classList.toggle("on", block);
-    this.textContent = block ? `🚫 No te volveré a recomendar a ${t.artist}` : `🚫 No recomendar más a ${t.artist}`;
-  }, textContent:`🚫 No recomendar más a ${t.artist}`});
+    this.textContent = block ? `⊘ No te volveré a recomendar a ${t.artist}` : `⊘ No recomendar más a ${t.artist}`;
+  }, textContent:`⊘ No recomendar más a ${t.artist}`});
   const done = () => {
     R.vote(S, t, {kind:"nope", reasons:[...picked], block}, current);
     save(); closeSheet(); deal();
@@ -591,16 +500,15 @@ function finishDay() {
   const rtxt = Object.entries(reasons).sort((a,b)=>b[1]-a[1])
     .filter(([k]) => NOPE_REASONS.some(r => r[0] === k))
     .map(([k,v]) => `${NOPE_REASONS.find(r=>r[0]===k)[1].toLowerCase()} (${v})`).join(", ") || "—";
-  const langs = Object.entries(S.langMult).map(([l,m]) => `${LANG_NAMES[l]} ×${m.toFixed(2)}`).join(", ") || "sin cambios";
   box.append(
-    el("div",{style:"font-size:44px",textContent:"🎧"}),
-    el("h1",{textContent: likes.length ? `Hoy te han gustado ${likes.length} de ${PER_DAY}` : "Hoy no ha habido suerte"}),
+    el("div",{className:"bignum",innerHTML:`${likes.length}<small>/${PER_DAY}</small>`}),
+    el("h1",{textContent: likes.length ? (likes.length === 1 ? "Una canción te ha gustado hoy" : "Canciones que te han gustado hoy") : "Hoy no ha habido suerte"}),
     el("p",{textContent:"Mañana tendrás 5 nuevas, afinadas con lo que acabas de votar."}),
     el("div",{className:"liked"}, ...likes.map(t => el("a",{href:`https://open.spotify.com/search/${encodeURIComponent(t.artist+" "+t.title)}`,target:"_blank",rel:"noopener"},
       el("img",{src:t.cover,alt:""}), el("div",{}, el("b",{textContent:t.title}), el("small",{textContent:t.artist}))))),
     el("div",{className:"stats",innerHTML:
       `<b>Lo que ha aprendido (prototipo)</b><br>Votadas en total: ${S.seen.length} · me gusta: ${S.likes.length} · no: ${totalNopes} · ya conocidas: ${S.known.length + S.likes.filter(l=>l.known).length + S.nopes.filter(n=>n.known).length}<br>`+
-      `Motivos del no: ${rtxt}<br>Peso de idiomas: ${langs}<br>Bonus de novedad: ${S.novelty.toFixed(2)}`}),
+      `Motivos del no: ${rtxt}<br>Bonus de novedad: ${S.novelty.toFixed(2)}`}),
     ...(S.blocked.length ? [el("div",{className:"stats"}, el("b",{textContent:"Artistas bloqueados"}),
       ...S.blocked.map(b => el("div",{style:"display:flex;justify-content:space-between;align-items:center"},
         el("span",{textContent:b.name}),
@@ -611,6 +519,14 @@ function finishDay() {
   show("doneScreen");
 }
 
+// ------------------------------------------------------------------ selector de tema (provisional)
+if (!DEMO && PARAMS.has("themes")) document.body.append(el("button", {id: "themeBtn", textContent: "tema · " + THEME, title: "Cambiar de estilo visual", onclick() {
+  const next = THEMES[(THEMES.indexOf(THEME) + 1) % THEMES.length];
+  try { localStorage.setItem("theme", next); } catch (e) {}
+  const u = new URL(location.href); u.searchParams.delete("theme"); location.href = u.toString();
+}}));
+if (THEME === "fanzine") { const b = document.querySelector("header b"); if (b) ransom(b); }
+
 // ------------------------------------------------------------------ arranque
 fetch("deck.json", {cache:"no-store"}).then(r => r.json()).then(d => {
   DECK = d; R = Recommender.create(d); byId = R.byId;
@@ -618,6 +534,7 @@ fetch("deck.json", {cache:"no-store"}).then(r => r.json()).then(d => {
   const counts = {}; d.tracks.filter(t=>!t.seed).forEach(t => counts[t.lang] = (counts[t.lang]||0)+1);
   $("seedline").textContent = `Prototipo · semillas: ${d.seeds.join(", ")} · ${Object.values(counts).reduce((a,b)=>a+b,0)} canciones en el mazo (` +
     Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([l,n]) => `${l==="?"?"dudoso":l} ${n}`).join(", ") + ")";
+  if (DEMO && !S.prefs) S.prefs = {primary: "es", extras: ["en"], mix: 80, instr: true, eval: false};
   if (S.prefs) { show("deckScreen"); deal(); } else { renderOnb(); show("onb"); }
 }).catch(() => { document.body.innerHTML = '<p style="padding:24px">No encuentro deck.json. Ejecuta primero build_deck.py.</p>'; });
 </script>

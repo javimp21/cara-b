@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Direcciones de diseño</title>
+<style>
+  :root{color-scheme:light dark;--bg:#e9e9ec;--fg:#16161a;--muted:#6a6a73;--card:#fff}
+  @media (prefers-color-scheme:dark){:root{--bg:#101012;--fg:#f0f0f3;--muted:#9a9aa5;--card:#1b1b1f}}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;padding:28px 0 40px}
+  h1{margin:0 24px 4px;font-size:22px}
+  p.lead{margin:0 24px 22px;color:var(--muted);max-width:760px}
+  .row{display:flex;gap:26px;padding:4px 24px 24px;overflow-x:auto;scroll-snap-type:x proximity}
+  figure{margin:0;flex:none;scroll-snap-align:start}
+  figcaption{margin:0 0 10px;display:flex;flex-direction:column;gap:2px}
+  figcaption b{font-size:16px}
+  figcaption span{color:var(--muted);font-size:13px;max-width:370px}
+  .phone{width:390px;height:790px;border-radius:38px;overflow:hidden;background:#000;box-shadow:0 0 0 9px #1b1b1d,0 24px 60px rgba(0,0,0,.4)}
+  iframe{width:100%;height:100%;border:0;display:block}
+  a{color:inherit}
+</style>
+</head>
+<body>
+<h1>Cinco direcciones de diseño, con la misma canción</h1>
+<p class="lead">Ginebras – «Desastre de persona». Cada móvil es la app real funcionando (sin sonido en esta vista): puedes deslizar la tarjeta, abrir las hojas y cambiar de pestaña. Para probar una a pantalla completa, con sonido, abre <code>app.html?theme=nombre</code> o usa el botón «tema» de la esquina.</p>
+<div class="row" id="row"></div>
+<script>
+const SONG = "4121746561";
+const THEMES = [
+  ["editorial", "Editorial oscuro", "Lo que tienes ahora: serif de revista, fondo cálido y teñido por la portada."],
+  ["fanzine", "Fanzine / fotocopia", "Papel barato, foto en blanco y negro con trama, letras recortadas, cinta adhesiva y rotulador."],
+  ["crate", "Caja de discos", "Cada canción es una carátula de cartón con el disco asomando que gira, y una pegatina de precio."],
+  ["riso", "Risografía", "Cartel a dos tintas: la portada se imprime con su propio color y las tintas se solapan."],
+  ["tape", "Casete", "La portada es el inserto y debajo va el casete con etiqueta a mano; los carretes giran mientras suena."],
+];
+const row = document.getElementById("row");
+for (const [id, name, desc] of THEMES) {
+  const f = document.createElement("figure");
+  f.innerHTML = `<figcaption><b>${name}</b><span>${desc}</span></figcaption>
+    <div class="phone"><iframe title="${name}" loading="lazy" src="app.html?demo&t=${SONG}&theme=${id}"></iframe></div>
+    <figcaption style="margin-top:12px"><span><a href="app.html?theme=${id}">Abrir a pantalla completa →</a></span></figcaption>`;
+  row.append(f);
+}
+</script>
+</body>
+</html>

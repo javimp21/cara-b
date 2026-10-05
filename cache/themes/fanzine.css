@@ -1,0 +1,91 @@
+/* FANZINE / FOTOCOPIA — papel barato, tóner, recortes, cinta adhesiva, rotulador.
+   Referencias: fanzines punk, flyers fotocopiados, notas de rescate. */
+:root{
+  --serif:"Anton","Impact","Arial Narrow",sans-serif;
+  --sans:"Special Elite","Courier New",monospace;
+  --hand:"Permanent Marker","Comic Sans MS",cursive;
+  --bg:#e6e1d4;--surface:#f4f1e7;--surface2:#dcd6c5;--fg:#141414;--muted:#4f4c44;--line:#141414;
+  --acc:#e5312b;--acc-fg:#fff;--nope:#e5312b;
+  --shadow:7px 7px 0 #141414;--tint:#e6e1d4;--tint-strength:0%;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#171717;--surface:#242424;--surface2:#2e2e2e;--fg:#efece2;--muted:#aaa699;--line:#efece2;
+  --shadow:7px 7px 0 #efece2;--tint:#171717;
+}}
+body{background-color:var(--bg);
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .55 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='.38'/></svg>");
+  font-size:14px}
+
+/* cabecera: letras recortadas */
+header b{font-style:normal;font-weight:400;font-size:26px;letter-spacing:0;display:flex;gap:1px;flex-wrap:nowrap}
+.w{display:inline-block;white-space:nowrap}
+.r{display:inline-block;padding:0 4px;line-height:1.12;font-family:var(--serif);text-transform:uppercase}
+.r0{background:#141414;color:#f4f1e7;transform:rotate(-3deg)}
+.r1{background:var(--acc);color:#fff;transform:rotate(2.5deg)}
+.r2{background:#f4f1e7;color:#141414;border:1.5px solid #141414;font-family:"Special Elite",serif;transform:rotate(-1.5deg)}
+.r3{background:#ffe14d;color:#141414;transform:rotate(3deg)}
+.r4{background:transparent;color:var(--fg);font-family:"Special Elite",serif;text-decoration:underline;transform:rotate(-2deg)}
+.dots i{height:8px;width:14px;border-radius:0;background:transparent;border:2px solid var(--fg)}
+.dots i.fill{background:var(--fg)}
+.iconbtn{font-family:var(--hand);font-size:13px;letter-spacing:0;text-transform:none;color:var(--fg);text-decoration:underline}
+
+/* pestañas: mecanografiadas, subrayadas con rotulador */
+.tabs{border-bottom:3px solid var(--fg)}
+.tabs button{font-family:var(--sans);text-transform:uppercase;letter-spacing:.04em;font-size:13px;color:var(--fg);opacity:.6}
+.tabs button.on{opacity:1}
+.tabs button.on::after{height:6px;bottom:-3px;background:var(--acc);border-radius:0;transform:rotate(-1.2deg)}
+.tabs .n{border-radius:0;background:var(--fg);color:var(--bg)}
+
+/* tarjeta: foto fotocopiada pegada con cinta */
+.card{overflow:visible;border-radius:0;border:3px solid var(--fg);background:var(--surface);box-shadow:var(--shadow);rotate:-.9deg}
+.cover{border-bottom:3px solid var(--fg);background-color:#888}
+.cover::before{content:"";position:absolute;inset:0;background:inherit;filter:grayscale(1) contrast(1.7) brightness(1.08)}
+.cover::after{background:radial-gradient(circle,rgba(0,0,0,.6) 0 1.1px,transparent 1.5px) 0 0/5px 5px;mix-blend-mode:multiply;opacity:.55}
+.badges{top:20px;left:12px}
+.badge{border-radius:0;background:var(--fg);color:var(--bg);border:0;backdrop-filter:none;font-family:var(--sans);font-size:11px;letter-spacing:.04em;transform:rotate(-2deg)}
+.badge+.badge{transform:rotate(1.5deg);background:var(--acc);color:#fff}
+.info{margin-top:0;padding:14px 18px 18px;background:var(--surface)}
+.info h3{font-size:34px;line-height:1.28;font-weight:400;-webkit-line-clamp:3;letter-spacing:.01em}
+.info h3 .r{margin:1px 0}
+.info .artist{display:inline-block;font-family:var(--hand);font-size:19px;letter-spacing:.02em;text-transform:none;color:var(--fg);background:linear-gradient(transparent 52%,#ffe14d 52%);padding:0 5px;margin:10px 0 12px;transform:rotate(-1.2deg)}
+.why{font-size:12.5px;color:var(--muted);line-height:1.5}
+.why b{color:var(--fg)}
+.progress{background:rgba(255,255,255,.55);height:5px;border-radius:0;top:10px}
+.progress i{background:var(--acc);border-radius:0}
+.playstate{border-radius:0;background:var(--fg);border:3px solid var(--bg)}
+.d1,.d2{display:block;position:absolute;z-index:6;height:28px;background:rgba(238,228,170,.82);box-shadow:0 1px 3px rgba(0,0,0,.3);pointer-events:none}
+.d1{top:-13px;left:14px;width:92px;transform:rotate(-7deg)}
+.d2{top:-12px;right:12px;width:78px;transform:rotate(6deg)}
+.stamp{font-family:var(--hand);text-transform:uppercase;font-style:normal;font-size:30px;border:4px solid;border-radius:6px;background:rgba(244,241,231,.78);letter-spacing:.03em}
+.stamp.like{color:#0a8f3c;border-color:#0a8f3c}
+.stamp.nope{color:var(--acc);border-color:var(--acc)}
+.stamp.know{color:var(--fg);border-color:var(--fg);font-size:22px}
+
+/* botones: cuadrados recortados con sombra dura */
+.act{border-radius:0;border:3px solid var(--fg);background:var(--surface);box-shadow:5px 5px 0 var(--fg);transition:transform .08s,box-shadow .08s}
+.act:active{transform:translate(4px,4px);box-shadow:1px 1px 0 var(--fg)}
+.act.nope svg{stroke:var(--fg);stroke-width:3.2}
+.act.like{background:var(--acc);border-color:var(--fg);box-shadow:5px 5px 0 var(--fg)}
+.act.like svg{fill:#fff}
+.act.know{box-shadow:none;border:0;background:transparent;font-family:var(--hand);font-size:14px;letter-spacing:0;text-transform:none;text-decoration:underline;color:var(--fg)}
+.hint{font-family:var(--sans);color:var(--muted)}
+
+/* hojas, chips y listas */
+.scrim{background:rgba(20,20,20,.5);backdrop-filter:none}
+.sheet{border-radius:0;border:3px solid var(--fg);border-bottom:0;box-shadow:0 -7px 0 var(--fg)}
+.sheet h4,.onb h1,.done h1,.evh,.statv,.bignum,.range output{font-weight:400;text-transform:uppercase;letter-spacing:.01em}
+.onb h1{font-size:44px;line-height:1.02}
+.sheet h4{font-size:30px}
+.chip{border-radius:0;border:2px solid var(--fg);font-family:var(--sans)}
+.chip.on{background:var(--fg);color:var(--bg)}
+.undo,.row button,.blockbtn{border-radius:0;border:2px solid var(--fg);color:var(--fg)}
+.row button.go,.primary{border-radius:0;background:var(--acc);color:#fff;border:3px solid var(--fg);box-shadow:5px 5px 0 var(--fg);text-transform:uppercase;font-family:var(--serif);font-weight:400;letter-spacing:.03em}
+.links a{border-radius:0;border:2px solid var(--fg);background:var(--surface)}
+.stat,.note,.stats{border-radius:0;border:2px solid var(--fg);box-shadow:4px 4px 0 var(--fg)}
+.day{font-family:var(--hand);font-style:normal;font-size:20px;background:linear-gradient(transparent 55%,#ffe14d 55%);display:inline-block;padding:0 6px;margin-left:0;transform:rotate(-1deg);color:#141414}
+.entry,.liked a{border-bottom:2px dashed var(--fg)}
+.item img,.liked img{border-radius:0;border:2px solid var(--fg);box-shadow:3px 3px 0 var(--fg);filter:grayscale(1) contrast(1.4)}
+.item .txt b,.liked b{font-family:var(--serif);font-weight:400;font-size:20px;text-transform:uppercase}
+.rbar .bar,.rbar .bar i,.mixbar,.mixbar span{border-radius:0}
+.rbar .bar{border:1.5px solid var(--fg);background:transparent}
+#themeBtn{border-radius:0;border:2px solid var(--fg);color:var(--fg);background:var(--surface)}

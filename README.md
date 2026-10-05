@@ -12,11 +12,21 @@ Prototipo de una app de recomendación musical con tarjetas tipo Tinder, pensada
 - **5 recomendaciones al día**, pensadas como hábito diario.
 - **Idiomas**: un idioma principal y hasta 4 más por orden de preferencia, con un control de cuánta música quieres en el principal.
 - **Sección "Descubiertas"**: lista de las canciones nuevas que te han gustado, agrupadas por el día en que las descubriste. Al pulsar una se despliegan los enlaces a Spotify, YouTube Music, Apple Music, Tidal y Deezer.
-- **Pestaña "Evaluación"**: guarda cada voto con su contexto y mide si el sistema acierta más que el azar (ver *Evaluación*). Mezcla 1 de cada 5 canciones elegidas al azar como grupo de control; se puede desactivar al empezar.
+- **Modo desarrollo (`?dev`)**: añade la pestaña "Evaluación", que guarda cada voto con su contexto y mide si el sistema acierta más que el azar (ver *Evaluación*), y mezcla 1 de cada 5 canciones elegidas al azar como grupo de control. Es una herramienta para validar el sistema, no parte de la experiencia de un usuario final, así que está oculta por defecto.
 - **Control del usuario**: "Cambiar de opinión" tras un swipe y "No recomendar más a este artista".
-- **El sistema aprende en el navegador** con cada voto: sube lo parecido a lo que te gusta, aleja lo parecido a lo que descartas, y ajusta el peso de los idiomas y de la novedad.
+- **El sistema aprende en el navegador** con cada voto: sube lo parecido a lo que te gusta, aleja lo parecido a lo que descartas y ajusta cuánta novedad busca.
 - **Los motivos actúan sobre lo que dices**: "no me gusta la voz" aleja canciones con esa voz o timbre pero no las de ritmo parecido, y "me gusta el ritmo" atrae canciones de ritmo parecido. Ver *Aspectos del sonido* más abajo.
-- **Explicaciones honestas**: solo dice "parecida a X" si el parecido es alto dentro del mazo, y lo explica con medidas reales (tempo, energía, brillo), no con etiquetas inventadas.
+- **Sin sobreexplicar**: la tarjeta dice solo "Muy parecida a X" cuando el parecido es alto dentro del mazo (y "Para ampliar tu gusto" cuando no), sin listar razones que el sistema no puede justificar.
+
+## Diseño
+
+Dirección visual **casete**: la portada es el inserto de la caja y debajo va el casete, con una etiqueta de la que cuelgan el título y el artista en **tiras de etiquetadora** (plástico negro con letras en relieve; la del artista toma el color de la canción), una franja del color de cada portada y dos carretes que giran mientras suena. Los botones son teclas de pletina. Sigue el tema claro u oscuro del sistema.
+
+- **El punto de partida fue evitar la estética típica de interfaz generada por IA**: nada de degradados morados, de Inter ni de etiquetas en mayúsculas monoespaciadas con letra separada, y la forma de las piezas sale del objeto (casete, etiquetadora) y no de una plantilla. La tipografía sale del objeto: Nunito, de letras redondeadas, que es lo más parecido a las tiras de Dymo reales, elegida entre siete candidatas (grotescas, redondeadas y condensadas) en una comparativa lado a lado, y no de una lista de fuentes de moda. Las tiras se dibujan con CSS: la fuente Dymo más conocida tiene licencia solo para uso personal, así que no se incluye.
+- **Minimalismo deliberado**: sin etiquetas de idioma ni de fans sobre la portada, sin texto de ayuda bajo los botones y con los ajustes secundarios plegados en «Más ajustes». La tarjeta dice solo «Muy parecida a X».
+- **Otras tres direcciones exploradas**, todas funcionales: `fanzine` (fotocopia, letras recortadas), `crate` (caja de discos) y `riso` (cartel de risografía, con cada canción impresa en la tinta de su portada). Se ven una al lado de otra en `cache/themes.html` y se activan con `app.html?theme=nombre`; añadir `?themes` muestra un botón para ir cambiando.
+- **Arquitectura de estilos**: `cache/base.css` (estructura y tema por defecto) más un `cache/themes/<nombre>.css` que lo sobrescribe, sin frameworks ni dependencias de interfaz. El color dominante de cada portada se calcula una vez al generar el mazo (`colors.py`), porque las portadas vienen de otro dominio y leer sus píxeles en el navegador exige permisos CORS.
+- Respeta `prefers-reduced-motion` y `prefers-color-scheme`.
 
 ## Cómo funciona
 
@@ -61,7 +71,7 @@ Lo que salió bien y lo que no:
 
 ## Evaluación
 
-Medir si las recomendaciones son buenas exige comparar con algo. Cada voto se guarda con la puntuación que tenía la canción cuando se la serví, si la eligió el modelo o el azar (grupo de control, 1 de cada 5 en modo evaluación) y la ronda. La pestaña **Evaluación** calcula, solo sobre canciones nuevas (los "ya lo conozco" no cuentan):
+Medir si las recomendaciones son buenas exige comparar con algo. Cada voto se guarda con la puntuación que tenía la canción cuando se la serví, si la eligió el modelo o el azar (grupo de control, 1 de cada 5 en modo evaluación) y la ronda. La pestaña **Evaluación** (solo visible con `?dev` en la URL, no está pensada para usuarios finales) calcula, solo sobre canciones nuevas (los "ya lo conozco" no cuentan):
 
 - **Tasa de aciertos** del modelo frente al control, con intervalo de confianza del 95 % (Wilson). No afirma que el modelo supera al azar hasta que los intervalos dejan de solaparse.
 - **Aciertos por ronda**, para ver si mejora con el uso.
@@ -133,6 +143,8 @@ python mert_embed.py
 python finalize_deck.py
 # 4) espacios por aspecto (voz, estilo, ritmo, producción) y su validación
 python aspects.py
+# 5) color dominante de cada portada (para teñir la pantalla)
+python colors.py
 
 # probar la app
 python -m http.server 8765 -d cache
@@ -151,11 +163,14 @@ En `cache/` hay ya un mazo generado con `Barry B, Sanguijuelas del Guadiana, Ven
 | `features.py` | BPM, energía, timbre y armonía con librosa |
 | `mert_embed.py` | Embeddings MERT por capas (con hooks, por compatibilidad con transformers 5) |
 | `finalize_deck.py` | Sustituye los vectores por los de MERT y añade las medidas interpretables |
+| `colors.py` | Color dominante de cada portada (Pillow), para el teñido de la pantalla |
 | `aspects.py` | Espacios por aspecto (voz, estilo, ritmo, producción) y su validación |
 | `cache/recommender.js` | Lógica del recomendador (puntuación, siguiente canción, aprendizaje, métricas), sin interfaz |
 | `sim/simulate.js` | Simulación con usuarios sintéticos (Node) |
 | `sim/sweep.js` | Barrido de parámetros del recomendador con la misma simulación |
-| `cache/app.html` | La app de tarjetas (HTML, CSS y JS en un archivo) |
+| `cache/app.html` | La app de tarjetas (HTML y JavaScript) |
+| `cache/base.css`, `cache/themes/` | Estilos: base y una hoja por dirección de diseño |
+| `cache/themes.html` | Comparativa de las direcciones de diseño, una al lado de otra |
 
 ## Pendiente
 

@@ -19,7 +19,7 @@
   const localDate = () => new Date().toLocaleDateString("sv-SE");   // fecha local AAAA-MM-DD
 
   const fresh = () => ({prefs: null, seen: [], likes: [], nopes: [], known: [], blocked: [], novelty: .15,
-                        langMult: {}, today: [], day: null, log: [], round: 1});
+                        today: [], day: null, log: [], round: 1});
 
   function langWeights(p) {
     // principal = mix%, el resto se reparte 4:3:2:1 entre los extra
@@ -56,7 +56,7 @@
       if (learn) {
         for (const n of S.nopes) {
           const x = byId[n.id];
-          if (!n.reasons.length || n.reasons.includes("hook")) neg = Math.max(neg, GLOBAL_NEG * dot(t.emb, x.emb));
+          if (!n.reasons.length) neg = Math.max(neg, GLOBAL_NEG * dot(t.emb, x.emb));
           for (const r of n.reasons) {
             const a = ASPECT_OF[r];
             if (a) neg = Math.max(neg, ASPECT_NEG * ASPECT_W[a] * Math.max(0, zsim(a, t, x) - ASPECT_Z0));
@@ -80,7 +80,6 @@
       seeds.forEach(t => seenArtists.add(t.artist_id));
       S.blocked.forEach(b => seenArtists.add(b.id));
       const w = langWeights(S.prefs);
-      for (const l in S.langMult) if (w[l]) w[l] *= S.langMult[l];
       const pool = deck.tracks.filter(t => !t.seed && !seenArtists.has(t.artist_id) &&
         (w[t.lang] || (t.lang === "?" && S.prefs.instr)));
       if (!pool.length) return null;
@@ -123,7 +122,6 @@
           S.likes.push({id: t.id, reasons, date}); break;
         case "nope":
           if (v.block) S.blocked.push({id: t.artist_id, name: t.artist});
-          if (reasons.includes("lang") && t.lang !== "?") S.langMult[t.lang] = (S.langMult[t.lang] ?? 1) * .6;
           if (reasons.includes("famous")) S.novelty = Math.min(.6, S.novelty + .1);
           S.nopes.push({id: t.id, reasons, date}); break;
         // "ya la conocía" no es un descubrimiento: no gasta una de las 5, el artista no vuelve y se busca algo más novedoso

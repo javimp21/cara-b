@@ -1,0 +1,152 @@
+/* CASETE — la portada es el inserto de la caja y debajo va el casete. El título y el artista van en
+   tiras de etiquetadora Dymo (plástico con letras en relieve), no en letra "a mano". Los carretes giran
+   mientras suena y los botones son teclas de pletina.
+   Tipografía: Nunito, de letras redondeadas, que es lo más parecido a las tiras de Dymo reales y tiene licencia abierta. */
+:root{
+  --serif:"Nunito","Arial Rounded MT Bold",sans-serif;
+  --sans:"Nunito","Arial Rounded MT Bold",sans-serif;
+  --strip:"Nunito","Arial Rounded MT Bold",sans-serif;
+  --strip-weight:900;--strip-track:.07em;--strip-stroke:0px;
+  --bg:#e4dcc9;--surface:#cfc6b2;--surface2:#bdb39d;--fg:#1d1b17;--muted:#5d574b;--line:#1d1b17;
+  --acc:#ff5a1f;--acc-fg:#fff;--nope:#d6361d;
+  --shadow:0 14px 30px rgba(40,30,15,.35);--tint:#e4dcc9;--tint-strength:0%;
+  --label:#f6f0df;--teal:#1f8a86;--tape:#171614;--tape-ink:#f3f0e6;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#1b2321;--surface:#2d3835;--surface2:#37443f;--fg:#eee7d4;--muted:#a3ad9f;--line:#eee7d4;
+  --acc:#ff7a3d;--acc-fg:#1a120c;--tint:#1b2321;--shadow:0 14px 30px rgba(0,0,0,.5);
+}}
+body{background:repeating-linear-gradient(0deg,rgba(0,0,0,.035) 0 1px,transparent 1px 4px),var(--bg);font-size:15px}
+
+/* tira de etiquetadora: plástico negro brillante con letras blancas en relieve */
+.strip,header b,.day,.tabs .n{font-family:var(--strip);font-weight:var(--strip-weight,400);text-transform:uppercase;letter-spacing:var(--strip-track,.13em);color:var(--tape-ink);
+  background:linear-gradient(180deg,#2b2a28,var(--tape) 45%,#0f0e0d);border-radius:3px;
+  text-shadow:0 -1px 0 rgba(0,0,0,.7),0 1px 0 rgba(255,255,255,.22);-webkit-text-stroke:var(--strip-stroke,.35px) var(--tape-ink);
+  box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 2px 3px rgba(0,0,0,.35)}
+.strip{display:inline;padding:3px 9px;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+header b{font-style:normal;font-size:17px;padding:6px 13px;transform:rotate(-2deg);display:inline-block}
+.dots i{height:10px;width:10px;border-radius:50%;background:transparent;border:2px solid var(--fg)}
+.dots i.fill{background:var(--acc);border-color:var(--acc)}
+.iconbtn{font-family:var(--sans);font-weight:600;font-size:12px;letter-spacing:.06em;text-transform:none}
+.tabs{border-bottom:2px solid var(--fg)}
+.tabs button{font-family:var(--sans);font-weight:600;text-transform:none;letter-spacing:0;font-size:14.5px;color:var(--fg);opacity:.55}
+.tabs button.on{opacity:1}
+.tabs button.on::after{height:4px;bottom:-3px;background:var(--acc);border-radius:0}
+.tabs .n{font-size:11px;padding:1px 7px;margin-left:6px;letter-spacing:.06em}
+
+/* tarjeta: caja + casete */
+.card{background:var(--surface);border:2px solid var(--fg);border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
+.cover{flex:1;margin:12px 12px 0;border:5px solid var(--label);border-radius:4px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)}
+.cover::after{background:linear-gradient(180deg,rgba(0,0,0,.22),transparent 24%)}
+.progress{top:8px}
+.badges{display:none}                         /* minimalismo: ni idioma ni fans sobre la portada */
+.info{position:relative;margin:12px;padding:12px 14px 62px;background:var(--label);color:#1d1b17;border:2px solid #1d1b17;border-top:11px solid var(--song);
+  border-radius:6px 6px 26px 26px;--fg:#1d1b17;--muted:#5d574b;}
+.info::before{content:"A";position:absolute;right:12px;top:10px;width:24px;height:24px;border-radius:50%;background:#1d1b17;color:var(--label);font:700 14px/24px var(--sans);text-align:center}
+.info h3{display:block;-webkit-line-clamp:unset;overflow:hidden;max-height:calc(3 * 32px);padding-right:30px;font-size:17px;line-height:32px;margin:0}
+.info .artist{margin:6px 0 4px;line-height:32px;font-size:15px;letter-spacing:0;font-weight:700;text-transform:none;color:inherit}
+.info .artist .strip{background:var(--song);color:var(--song-ink,#fff);-webkit-text-stroke:0;text-shadow:none;box-shadow:0 1px 0 rgba(255,255,255,.3) inset,0 2px 3px rgba(0,0,0,.3);font-size:14px}
+.why{font-size:12.5px;color:#4d483d;line-height:1.35;margin-top:2px;max-height:2.7em;overflow:hidden}
+.why b{color:#1d1b17}
+/* ventanita con carretes */
+.d3{display:block;position:absolute;left:50%;bottom:10px;width:176px;height:40px;margin-left:-88px;background:#1a1816;border-radius:20px;border:2px solid #1d1b17;z-index:1;pointer-events:none;
+  box-shadow:inset 0 0 0 4px #3b3631}
+.d1,.d2{display:block;position:absolute;bottom:14px;width:34px;height:34px;border-radius:50%;z-index:2;pointer-events:none;
+  background:radial-gradient(circle,#1a1816 0 14%,transparent 15%),conic-gradient(#f6f0df 0 12%,#2a2723 12% 33%,#f6f0df 33% 45%,#2a2723 45% 66%,#f6f0df 66% 78%,#2a2723 78% 100%)}
+.d1{left:calc(50% - 66px)}
+.d2{left:calc(50% + 32px)}
+.card:not(.paused) .d1,.card:not(.paused) .d2{animation:spin 2.2s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.stamp{font-family:var(--sans);font-style:normal;font-weight:700;text-transform:uppercase;letter-spacing:.06em;font-size:30px;border-width:3px;border-radius:4px;background:rgba(246,240,223,.9)}
+.stamp.like{color:var(--teal);border-color:var(--teal)}
+.stamp.nope{color:var(--nope);border-color:var(--nope)}
+.stamp.know{color:#1d1b17;border-color:#1d1b17;font-size:21px}
+.playstate{background:#1d1b17;border:2px solid var(--label)}
+
+/* botones: teclas de pletina */
+.actions{gap:14px}
+.act{width:74px;height:56px;border-radius:6px;border:2px solid var(--fg);background:linear-gradient(#ece5d3,#bfb7a2);box-shadow:0 5px 0 var(--fg);transition:transform .08s,box-shadow .08s}
+.act:active{transform:translateY(4px);box-shadow:0 1px 0 var(--fg)}
+.act.nope svg{stroke:#1d1b17;stroke-width:3}
+.act.like{width:86px;height:62px;background:linear-gradient(#ff7b43,#e2501b);border-color:var(--fg)}
+.act.like svg{fill:#fff}
+.act.know{background:transparent;border:0;box-shadow:none;width:auto;height:auto;font-family:var(--sans);font-weight:600;font-size:11px;letter-spacing:.02em;text-transform:none;color:var(--fg);padding:8px}
+.hint{display:none}                           /* minimalismo: sin texto de ayuda bajo los botones */
+
+/* hojas y resto */
+.scrim{background:rgba(29,27,23,.5);backdrop-filter:none}
+.sheet{background:var(--label);--fg:#1d1b17;--muted:#5d574b;--line:#1d1b17;color:#1d1b17;border:2px solid #1d1b17;border-bottom:0;border-top:11px solid var(--acc);border-radius:14px 14px 0 0}
+.sheet h4,.onb h1,.done h1,.evh,.statv,.bignum,.range output{font-family:var(--serif);font-weight:700;letter-spacing:-.01em;text-transform:none}
+.sheet h4{font-size:28px;line-height:1.05}
+.onb h1{font-size:44px;line-height:.98;letter-spacing:-.02em}
+.onb h2,.evsec,.sheet .label{font-family:var(--sans);font-weight:700;letter-spacing:.04em;font-size:12px}
+.chip{border:2px solid var(--fg);border-radius:6px;font-family:var(--sans);font-weight:500;font-size:15px}
+.chip.on{background:var(--acc);color:var(--acc-fg);border-color:var(--fg)}
+.sheet .chip.on{background:#1d1b17;color:var(--label)}
+.undo,.row button,.blockbtn{border:2px solid #1d1b17;border-radius:6px;color:#1d1b17;font-family:var(--sans);font-weight:600}
+.row button.go,.primary{background:var(--acc);color:#fff;border:2px solid #1d1b17;border-radius:6px;box-shadow:0 5px 0 #1d1b17;font-family:var(--sans);font-weight:700;font-size:17px;letter-spacing:.02em}
+.links a{background:#fff;border:2px solid #1d1b17;border-radius:6px;color:#1d1b17;font-weight:600}
+.stat,.note,.stats{background:var(--label);border:2px solid var(--fg);border-radius:8px;color:#1d1b17;--fg:#1d1b17;--muted:#5d574b}
+.bignum{color:var(--acc);font-size:92px}
+.day{display:inline-block;font-size:13px;padding:4px 11px;margin:20px 0 4px;transform:rotate(-1deg)}
+.entry,.liked a{border-bottom:2px solid var(--fg)}
+.item img,.liked img{border:3px solid var(--label);border-radius:3px;box-shadow:0 0 0 2px var(--fg)}
+.item .txt b,.liked b{font-family:var(--serif);font-weight:700;font-size:18px;line-height:1.1}
+.item .txt small,.liked small{font-family:var(--sans);font-weight:500;letter-spacing:.02em;text-transform:none;font-size:13px}
+.rbar .bar{height:10px;border:2px solid var(--fg);background:transparent;border-radius:2px}
+.rbar .bar i{background:var(--acc);border-radius:0}
+#themeBtn{border:2px solid var(--fg);color:var(--fg);background:var(--label);border-radius:4px;font-family:var(--sans);font-weight:600}
+
+/* ---------- pulido de las pantallas secundarias ---------- */
+*{scrollbar-color:rgba(29,27,23,.28) transparent}
+.seedline,.liked + .stats{display:none}                 /* información de desarrollo: fuera de la vista */
+
+/* etiquetas de sección = tiras de etiquetadora */
+.onb h2,.evsec,.sheet .label,.more summary{display:inline-block;font-family:var(--strip);font-weight:var(--strip-weight,400);text-transform:uppercase;letter-spacing:var(--strip-track,.13em);font-size:11.5px;
+  color:var(--tape-ink);background:linear-gradient(180deg,#2b2a28,var(--tape) 45%,#0f0e0d);border-radius:3px;padding:4px 10px;margin:26px 0 12px;
+  text-shadow:0 -1px 0 rgba(0,0,0,.7),0 1px 0 rgba(255,255,255,.22);-webkit-text-stroke:var(--strip-stroke,.3px) var(--tape-ink);box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 2px 3px rgba(0,0,0,.35)}
+.onb h2 span{font-family:var(--sans);text-transform:none;letter-spacing:.01em;-webkit-text-stroke:0;font-size:12px;opacity:.85}
+.evsec{margin:24px 0 10px}
+.sheet .label{margin:6px 0 12px}
+.more summary{margin:22px 0 4px;color:var(--tape-ink);padding:5px 12px}
+.more summary::before{content:"▸ "}
+.more[open] summary::before{transform:none;content:"▾ "}
+.onb p{color:var(--muted);font-size:14.5px}
+.onb h1{font-size:40px}
+.mixbar{border-radius:2px;background:rgba(29,27,23,.15)}
+.range input{accent-color:var(--acc)}
+.range output{font-size:30px;line-height:1}
+
+/* lista de descubiertas = tracklist de la caja del casete */
+.list{counter-reset:track}
+.entry{counter-increment:track}
+.item{gap:12px;padding:11px 2px}
+.item::before{content:counter(track,decimal-leading-zero);flex:none;width:26px;font:700 15px/1 var(--sans);color:var(--muted)}
+.item img{width:46px;height:46px}
+.panel{padding:2px 2px 14px 40px}
+.empty{font-family:var(--serif);font-weight:600;font-size:20px;color:var(--fg);max-width:300px;line-height:1.25}
+
+/* pantalla del final del día */
+.done h1{font-size:27px;line-height:1.05;margin:6px 0 8px}
+.done p{font-size:14.5px}
+.liked a{padding:11px 2px;gap:12px}
+.liked{counter-reset:t}
+.liked a{counter-increment:t}
+.liked a::before{content:counter(t,decimal-leading-zero);flex:none;width:26px;font:700 15px/1 var(--sans);color:var(--muted)}
+.liked img{width:46px;height:46px}
+.done .iconbtn{color:var(--muted);text-decoration:underline;text-underline-offset:3px}
+.done .primary{margin-top:22px}
+
+/* evaluación */
+.evh{font-size:30px}
+.statv{font-size:42px;line-height:1}
+.rbar span:first-child{font-weight:600}
+.note{font-size:13.5px}
+.onb h2,.more summary{align-self:flex-start}
+.onb h2 span{color:var(--tape-ink) !important;opacity:.85}
+.day,.evsec,.sheet .label{align-self:flex-start}
+@media (prefers-color-scheme:dark){
+  header b,.strip,.onb h2,.evsec,.sheet .label,.more summary,.day,.tabs .n{box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 0 0 1px rgba(255,255,255,.16),0 2px 3px rgba(0,0,0,.45)}
+  .card{border-color:#0e1312}
+  .info{border-left-color:#0e1312;border-right-color:#0e1312;border-bottom-color:#0e1312}   /* el borde superior conserva el color de la canción */
+}
