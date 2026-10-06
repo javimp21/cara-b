@@ -9,7 +9,8 @@ cache/*
 !cache/recommender.js
 
 # configuración local del entorno
-.claude/
+.claude/*
+!.claude/skills/
 !cache/base.css
 !cache/themes/
 !cache/themes.html
